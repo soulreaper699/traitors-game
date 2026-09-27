@@ -64,8 +64,6 @@ export default function AdminView({ gameState }) {
     }
   };
 
-  const [customGroupSize, setCustomGroupSize] = useState(2);
-
   const handleSetPlayerGroup = async (id, groupVal) => {
     let group = groupVal;
     if (groupVal === 'custom') {
@@ -85,19 +83,15 @@ export default function AdminView({ gameState }) {
     }
   };
 
-  const handleRandomizeGroups = async (onlyUnassigned = false) => {
-    const size = parseInt(customGroupSize, 10) || 2;
-    if (!window.confirm(onlyUnassigned 
-      ? `Auto-assign all unassigned players into groups of ${size}?`
-      : `Re-shuffle ALL alive players into groups of ${size}?`)) return;
+  const handleAutoAssignUnassigned = async () => {
     try {
       await fetch(`${API_URL}/api/admin/randomize-groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupSize: size, onlyUnassigned })
+        body: JSON.stringify({ onlyUnassigned: true })
       });
     } catch (err) {
-      alert('Failed to randomize groups: ' + err.message);
+      alert('Failed to assign unassigned players: ' + err.message);
     }
   };
 
@@ -221,53 +215,25 @@ export default function AdminView({ gameState }) {
         </div>
       </div>
 
-      {/* GROUP & SQUAD MANAGER TOOLBAR */}
-      <div className="glass-panel" style={{ marginBottom: '2rem', border: '1px solid rgba(197, 160, 89, 0.35)' }}>
-        <h3 style={{ color: 'var(--accent-gold)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          🎲 Group & Squad Setup
-        </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-          Distribute players into groups automatically (e.g. groups of 2, 4, 10), or assign individual players to any group below:
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--fg)' }}>Group Size:</span>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={customGroupSize}
-              onChange={(e) => setCustomGroupSize(e.target.value)}
-              style={{
-                width: '60px',
-                padding: '8px',
-                background: 'rgba(0,0,0,0.6)',
-                border: '1px solid var(--accent-gold)',
-                color: '#fff',
-                borderRadius: '4px',
-                textAlign: 'center',
-                fontSize: '1rem'
-              }}
-            />
+      {displayGroups['?'] && displayGroups['?'].length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(197, 160, 89, 0.1)', border: '1px solid var(--accent-gold)', borderRadius: '6px', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ color: 'var(--accent-gold)', margin: 0, fontSize: '1rem' }}>
+              ⚠️ {displayGroups['?'].length} Unassigned Player(s)
+            </h3>
+            <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
+              Assign them manually below or click to auto-fill them into the round's designed squads.
+            </p>
           </div>
           <button
             className="btn btn-primary"
-            style={{ padding: '8px 14px', fontSize: '0.85rem' }}
-            onClick={() => handleRandomizeGroups(false)}
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            onClick={handleAutoAssignUnassigned}
           >
-            🎲 Randomize ALL into Groups of {customGroupSize}
+            🎲 Auto-Assign into Squads
           </button>
-          {displayGroups['?'] && displayGroups['?'].length > 0 && (
-            <button
-              className="btn btn-outline"
-              style={{ padding: '8px 14px', fontSize: '0.85rem', color: 'var(--accent-gold)', borderColor: 'var(--accent-gold)' }}
-              onClick={() => handleRandomizeGroups(true)}
-            >
-              ➕ Auto-Assign {displayGroups['?'].length} Unassigned Player(s)
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       <h2 style={{ marginBottom: '1rem' }}>Alive Players by Group</h2>
       <div className="admin-grid">
@@ -281,9 +247,9 @@ export default function AdminView({ gameState }) {
                 <button
                   className="btn btn-outline"
                   style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-gold)', borderColor: 'var(--accent-gold)' }}
-                  onClick={() => handleRandomizeGroups(true)}
+                  onClick={handleAutoAssignUnassigned}
                 >
-                  🎲 Auto-Assign into Groups
+                  🎲 Auto-Assign
                 </button>
               )}
             </div>

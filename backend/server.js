@@ -373,51 +373,75 @@ app.post('/api/admin/set-player-group', async (req, res) => {
   });
 });
 
-// Admin endpoint: Auto-assign / randomize players into groups of N
+// Admin endpoint: Auto-assign / randomize players into groups based on the round's design
 app.post('/api/admin/randomize-groups', async (req, res) => {
-  const { groupSize = 2, onlyUnassigned = false } = req.body;
+  const { onlyUnassigned = false } = req.body;
   const currentRound = (await getConfig('current_round')) || '0';
   
   let col = 'round1_group';
-  if (currentRound === '2') col = 'round2_group';
-  else if (currentRound === '3') col = 'round3_group';
-  else if (currentRound === '4') col = 'round4_group';
+  let designedSize = 10;
+  if (currentRound === '2') { col = 'round2_group'; designedSize = 15; }
+  else if (currentRound === '3') { col = 'round3_group'; designedSize = 2; }
+  else if (currentRound === '4') { col = 'round4_group'; designedSize = 15; }
 
   let players = await getAllPlayers();
   let alivePlayers = players.filter(p => p.status === 'Alive');
   
-  let targetPlayers = alivePlayers;
-  let baseGroup = 1;
-
   if (onlyUnassigned) {
-    targetPlayers = alivePlayers.filter(p => !p[col] || p[col] <= 0);
-    // Find the highest existing group number
-    const existingGroups = alivePlayers.map(p => p[col] || 0);
-    const maxGroup = Math.max(0, ...existingGroups);
-    baseGroup = maxGroup > 0 ? maxGroup : 1;
-  }
+    const unassigned = alivePlayers.filter(p => !p[col] || p[col] <= 0);
+    if (unassigned.length === 0) {
+      return res.json({ success: true, message: 'No unassigned players' });
+    }
 
-  if (targetPlayers.length === 0) {
-    return res.json({ success: true, message: 'No players to assign' });
-  }
-
-  // Shuffle target players
-  const shuffled = targetPlayers.sort(() => Math.random() - 0.5);
-  const size = Math.max(1, parseInt(groupSize, 10) || 2);
-
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    shuffled.forEach((p, idx) => {
-      const gNum = onlyUnassigned 
-        ? baseGroup + Math.floor(idx / size)
-        : 1 + Math.floor(idx / size);
-      db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [gNum, p.id]);
+    // Count how many players are in each existing group
+    const groupCounts = {};
+    alivePlayers.forEach(p => {
+      const g = p[col];
+      if (g && g > 0) groupCounts[g] = (groupCounts[g] || 0) + 1;
     });
-    db.run('COMMIT', () => {
-      broadcastState();
-      res.json({ success: true, assignedCount: shuffled.length });
+
+    const shuffled = unassigned.sort(() => Math.random() - 0.5);
+
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      shuffled.forEach((p) => {
+        // Find existing group that has space (< designedSize)
+        let targetGroup = null;
+        const existingGroups = Object.keys(groupCounts).map(Number).sort((a,b) => a - b);
+        for (const g of existingGroups) {
+          if (groupCounts[g] < designedSize) {
+            targetGroup = g;
+            break;
+          }
+        }
+        // If all existing groups are full or none exist yet, create next group
+        if (!targetGroup) {
+          const maxGroup = existingGroups.length > 0 ? Math.max(...existingGroups) : 0;
+          targetGroup = maxGroup + 1;
+        }
+        groupCounts[targetGroup] = (groupCounts[targetGroup] || 0) + 1;
+        db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [targetGroup, p.id]);
+      });
+      db.run('COMMIT', () => {
+        broadcastState();
+        res.json({ success: true, assignedCount: shuffled.length });
+      });
     });
-  });
+  } else {
+    // Randomize all alive players according to the round's designed group size
+    const shuffled = alivePlayers.sort(() => Math.random() - 0.5);
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      shuffled.forEach((p, idx) => {
+        const gNum = 1 + Math.floor(idx / designedSize);
+        db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [gNum, p.id]);
+      });
+      db.run('COMMIT', () => {
+        broadcastState();
+        res.json({ success: true, assignedCount: shuffled.length });
+      });
+    });
+  }
 });
 
 app.post('/api/admin/set-winner', (req, res) => {
