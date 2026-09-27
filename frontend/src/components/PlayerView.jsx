@@ -50,8 +50,9 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
 
   const handleRegister = (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    socket.emit('register', { id: playerId, name });
+    const cleanNumber = name.replace(/\D/g, '').trim();
+    if (!cleanNumber) return;
+    socket.emit('register', { id: playerId, name: cleanNumber });
   };
 
   const myPlayer = gameState.players.find(p => p.id === playerId);
@@ -67,11 +68,25 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
           <h2 style={{ marginBottom: '1rem' }}>Join the Game</h2>
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <input 
-              type="text" 
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="input-field" 
               placeholder="Enter your player number" 
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                const numbersOnly = e.target.value.replace(/\D/g, '');
+                setName(numbersOnly);
+              }}
+              onKeyDown={(e) => {
+                if (
+                  !/^[0-9]$/.test(e.key) &&
+                  !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) &&
+                  !e.ctrlKey && !e.metaKey
+                ) {
+                  e.preventDefault();
+                }
+              }}
               required
             />
             <button type="submit" className="btn btn-primary">

@@ -108,7 +108,11 @@ io.on('connection', async (socket) => {
 
   socket.on('register', (data) => {
     const { id, name } = data;
-    db.run(`INSERT INTO players (id, name) VALUES (?, ?)`, [id, name], (err) => {
+    const cleanPlayerNumber = String(name || '').replace(/\D/g, '').trim();
+    if (!cleanPlayerNumber) {
+      return socket.emit('error', 'Player number must be digits only');
+    }
+    db.run(`INSERT INTO players (id, name) VALUES (?, ?)`, [id, cleanPlayerNumber], (err) => {
       if (err) {
         console.error('Registration error', err);
         socket.emit('error', 'Could not register');
