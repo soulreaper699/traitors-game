@@ -4,8 +4,8 @@ import { io } from 'socket.io-client';
 import PlayerView from './components/PlayerView';
 import AdminView from './components/AdminView';
 
-// Replace this with the deployed backend URL if hosting on Render/Vercel
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || `http://${window.location.hostname}:3001`;
+// Automatically use the same host for production deployment
+const SOCKET_URL = import.meta.env.PROD ? undefined : `http://${window.location.hostname}:3001`;
 export const socket = io(SOCKET_URL);
 
 function App() {

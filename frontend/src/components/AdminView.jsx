@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown } from 'lucide-react';
 
-// Replace this with the deployed backend URL if hosting on Render/Vercel
-const API_URL = import.meta.env.VITE_BACKEND_URL || `http://${window.location.hostname}:3001`;
+// Use relative path for production deployment where frontend is served by backend
+const API_URL = import.meta.env.PROD ? '' : `http://${window.location.hostname}:3001`;
 
 export default function AdminView({ gameState }) {
   const { players = [], currentRound = '0' } = gameState;

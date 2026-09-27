@@ -1,4 +1,14 @@
 {
+  "name": "traitors-game-root",
+  "version": "1.0.0",
+  "description": "Root package for full-stack deployment on Render",
+  "scripts": {
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start"
+  },
   "dependencies": {
     "lucide-react": "^1.47.0",
     "react-router-dom": "^7.18.4",
