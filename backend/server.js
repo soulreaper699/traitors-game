@@ -124,44 +124,64 @@ io.on('connection', async (socket) => {
 });
 
 // Helper to group and assign roles for Round 1 / The Relic Trial
+// Strict Logic: FIRST fill Group 1 up to 10 players, THEN move to Group 2, etc.
 const formRound1GroupsAndRoles = (players) => {
-  const preTraitors = players.filter(p => p.role === 'Traitor').sort(() => Math.random() - 0.5);
-  const innocents = players.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
-
   const chunkSize = 10;
-  const numGroups = Math.max(1, Math.ceil(players.length / chunkSize));
-  const groups = Array.from({ length: numGroups }, () => []);
+  
+  // Check if all players already have round1_group assigned
+  const allAssigned = players.length > 0 && players.every(p => p.round1_group && p.round1_group > 0);
+  let groupMap = {};
 
-  // Distribute pre-assigned traitors evenly across groups
-  preTraitors.forEach((traitor, idx) => {
-    groups[idx % numGroups].push(traitor);
-  });
+  if (allAssigned) {
+    // Preserve existing admin group assignments
+    players.forEach(p => {
+      const g = p.round1_group;
+      if (!groupMap[g]) groupMap[g] = [];
+      groupMap[g].push(p);
+    });
+  } else {
+    // Keep any already manually assigned players in their groups
+    players.forEach(p => {
+      if (p.round1_group && p.round1_group > 0) {
+        if (!groupMap[p.round1_group]) groupMap[p.round1_group] = [];
+        groupMap[p.round1_group].push(p);
+      }
+    });
 
-  // Distribute remaining players across groups until full
-  innocents.forEach((player) => {
-    const smallestGroup = groups.reduce((min, g) => g.length < min.length ? g : min, groups[0]);
-    smallestGroup.push(player);
-  });
+    // Unassigned players: fill Group 1 to 10 FIRST, then Group 2 to 10, etc.
+    const unassigned = players.filter(p => !p.round1_group || p.round1_group <= 0).sort(() => Math.random() - 0.5);
+    unassigned.forEach(p => {
+      let targetG = 1;
+      while (groupMap[targetG] && groupMap[targetG].length >= chunkSize) {
+        targetG++;
+      }
+      if (!groupMap[targetG]) groupMap[targetG] = [];
+      groupMap[targetG].push(p);
+    });
+  }
 
-  // Shuffle within each group so positions are natural
-  groups.forEach(g => g.sort(() => Math.random() - 0.5));
-
+  // Assign roles per group (keeping pre-assigned Traitors)
   const updates = [];
-  groups.forEach((group, groupIdx) => {
+  const groupKeys = Object.keys(groupMap).map(Number).sort((a,b) => a - b);
+  
+  groupKeys.forEach(gNum => {
+    const group = groupMap[gNum];
     let numTraitors = 3;
-    if (group.length < 10) numTraitors = Math.max(1, Math.round(group.length * 0.3));
+    if (group.length < chunkSize) {
+      numTraitors = Math.max(1, Math.round(group.length * 0.3));
+    }
 
     const existingTraitors = group.filter(p => p.role === 'Traitor');
     let neededTraitors = Math.max(0, numTraitors - existingTraitors.length);
-    const innocentCandidates = group.filter(p => p.role !== 'Traitor');
+    const innocentCandidates = group.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
     const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
 
-    group.forEach((player) => {
+    group.forEach(player => {
       let finalRole = 'Innocent';
       if (player.role === 'Traitor' || newlySelectedTraitors.has(player.id)) {
         finalRole = 'Traitor';
       }
-      updates.push({ id: player.id, role: finalRole, group: groupIdx + 1 });
+      updates.push({ id: player.id, role: finalRole, group: gNum });
     });
   });
 
@@ -239,35 +259,45 @@ app.post('/api/admin/set-clue', async (req, res) => {
 app.post('/api/admin/start-round2', async (req, res) => {
   let players = await getAllPlayers();
   const alivePlayers = players.filter(p => p.status === 'Alive');
-  
-  // Separate existing traitors and innocents
-  const existingTraitors = alivePlayers.filter(p => p.role === 'Traitor').sort(() => Math.random() - 0.5);
-  const innocents = alivePlayers.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
-
   const chunkSize = 15;
-  const numGroups = Math.max(1, Math.ceil(alivePlayers.length / chunkSize));
-  const groups = Array.from({ length: numGroups }, () => []);
 
-  // Distribute existing traitors across groups
-  existingTraitors.forEach((traitor, idx) => {
-    groups[idx % numGroups].push(traitor);
-  });
+  const allAssigned = alivePlayers.length > 0 && alivePlayers.every(p => p.round2_group && p.round2_group > 0);
+  let groupMap = {};
 
-  // Distribute remaining alive innocents
-  innocents.forEach((player) => {
-    const smallestGroup = groups.reduce((min, g) => g.length < min.length ? g : min, groups[0]);
-    smallestGroup.push(player);
-  });
+  if (allAssigned) {
+    alivePlayers.forEach(p => {
+      const g = p.round2_group;
+      if (!groupMap[g]) groupMap[g] = [];
+      groupMap[g].push(p);
+    });
+  } else {
+    alivePlayers.forEach(p => {
+      if (p.round2_group && p.round2_group > 0) {
+        if (!groupMap[p.round2_group]) groupMap[p.round2_group] = [];
+        groupMap[p.round2_group].push(p);
+      }
+    });
 
-  groups.forEach(g => g.sort(() => Math.random() - 0.5));
+    const unassigned = alivePlayers.filter(p => !p.round2_group || p.round2_group <= 0).sort(() => Math.random() - 0.5);
+    unassigned.forEach(p => {
+      let targetG = 1;
+      while (groupMap[targetG] && groupMap[targetG].length >= chunkSize) {
+        targetG++;
+      }
+      if (!groupMap[targetG]) groupMap[targetG] = [];
+      groupMap[targetG].push(p);
+    });
+  }
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
-    groups.forEach((group, groupIdx) => {
+    const groupKeys = Object.keys(groupMap).map(Number).sort((a,b) => a - b);
+    groupKeys.forEach(gNum => {
+      const group = groupMap[gNum];
       let numTraitors = Math.max(1, Math.round(group.length * 0.3));
       const groupTraitors = group.filter(p => p.role === 'Traitor');
       let neededTraitors = Math.max(0, numTraitors - groupTraitors.length);
-      const innocentCandidates = group.filter(p => p.role !== 'Traitor');
+      const innocentCandidates = group.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
       const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
 
       group.forEach((player) => {
@@ -276,10 +306,11 @@ app.post('/api/admin/start-round2', async (req, res) => {
           finalRole = 'Traitor';
         }
         db.run(`UPDATE players SET role = ?, round2_group = ? WHERE id = ?`, 
-          [finalRole, groupIdx + 1, player.id]);
+          [finalRole, gNum, player.id]);
       });
     });
     db.run(`UPDATE config SET value = '2' WHERE key = 'current_round'`);
+    db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
     db.run('COMMIT', () => {
       broadcastState();
       res.json({ success: true });
