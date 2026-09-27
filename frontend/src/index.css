@@ -1,0 +1,973 @@
+:root {
+  --bg: #030101;
+  --fg: #f4ede4;
+  --accent: #8b0000;
+  --accent-gold: #c5a059;
+  --text-muted: #8a7f76;
+  --accent-green: #3a7d44;
+  --accent-red: #9e1b1b;
+  --accent-blue: #3d5a80;
+  --panel-border: rgba(197, 160, 89, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #000;
+  background: radial-gradient(circle at top center, #1a0505 0%, #050101 60%, #000000 100%);
+  color: var(--fg);
+  font-family: 'Inter', sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ======================================================
+   ADDON 1: ULTRA-PREMIUM BLOOD ORBS (improved)
+   ====================================================== */
+.blood-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+
+.orb-1 {
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, #8b0000 0%, transparent 70%);
+  top: -200px; left: -200px;
+  animation: orbFloat1 25s infinite alternate ease-in-out;
+}
+
+.orb-2 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #ff0000 0%, transparent 70%);
+  bottom: -100px; right: -100px;
+  animation: orbFloat2 30s infinite alternate-reverse ease-in-out;
+}
+
+.orb-3 {
+  width: 1000px; height: 1000px;
+  background: radial-gradient(circle, #500000 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes orbFloat1 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(20vw, 10vh) scale(1.2); }
+}
+
+@keyframes orbFloat2 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-15vw, -15vh) scale(1.3); }
+}
+
+/* ======================================================
+   ADDON 2: ANIMATED SCANLINES (CRT Horror TV effect)
+   ====================================================== */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+}
+
+/* ======================================================
+   ADDON 3: SLOW BLOOD DRIP STREAKS
+   ====================================================== */
+.blood-drips {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.drip {
+  position: absolute;
+  top: -50px;
+  width: 2px;
+  background: linear-gradient(to bottom, #8b0000, transparent);
+  border-radius: 0 0 50% 50%;
+  opacity: 0.3;
+  animation: dripDown linear infinite;
+}
+
+@keyframes dripDown {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 0.4; }
+  90% { opacity: 0.2; }
+  100% { transform: translateY(110vh); opacity: 0; }
+}
+
+/* ======================================================
+   ADDON 4: FILM GRAIN / NOISE OVERLAY
+   ====================================================== */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+}
+
+/* ======================================================
+   ADDON 5: CINEMATIC VIGNETTE (darkened edges)
+   ====================================================== */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+}
+
+/* ======================================================
+   ADDON 6: ANIMATED ENTRANCE FADE-IN + SLIDE-UP
+   ====================================================== */
+.animate-fade-in {
+  animation: fadeSlideUp 1s ease-out both;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ======================================================
+   ADDON 7: PULSING RED GLOW ON GLASS PANELS (heartbeat)
+   ====================================================== */
+@keyframes panelPulse {
+  0%, 100% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0px rgba(139, 0, 0, 0); }
+  50% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 60px rgba(139, 0, 0, 0.15); }
+}
+
+/* ======================================================
+   ADDON 8: FLOATING MICRO-PARTICLES (tiny dust)
+   ====================================================== */
+.micro-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 200, 150, 0.4);
+  border-radius: 50%;
+  animation: particleFloat linear infinite;
+}
+
+@keyframes particleFloat {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.3; }
+  100% { transform: translate(var(--px-drift, 60px), var(--py-drift, -100vh)); opacity: 0; }
+}
+
+/* ======================================================
+   ADDON 9: BORDER GLOW TRAIL ON PANELS (animated borders)
+   ====================================================== */
+@keyframes borderGlow {
+  0% { border-color: rgba(197, 160, 89, 0.1); }
+  50% { border-color: rgba(139, 0, 0, 0.4); }
+  100% { border-color: rgba(197, 160, 89, 0.1); }
+}
+
+/* ======================================================
+   ADDON 10: TYPEWRITER-STYLE SUBTITLE FLICKER
+   ====================================================== */
+.subtitle-flicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(197, 160, 89, 0.6);
+  margin-top: 0.5rem;
+  margin-bottom: 2.5rem;
+  animation: flicker 4s infinite ease-in-out;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+  52% { opacity: 0.4; }
+  54% { opacity: 0.9; }
+}
+
+
+/* ==============================================================
+   LAYOUT
+   ============================================================== */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  position: relative;
+}
+
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80dvh;
+  text-align: center;
+  width: 100%;
+}
+
+/* ==============================================================
+   ULTRA-PREMIUM CINEMATIC TITLE
+   ============================================================== */
+.title-glow {
+  font-family: 'Cinzel', serif;
+  font-size: 5.5rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 2.5rem;
+  color: #ffffff;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.8),
+    0 0 40px rgba(139, 0, 0, 0.6),
+    0 0 80px rgba(255, 0, 0, 0.4);
+  position: relative;
+  z-index: 2;
+  animation: titleReveal 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes titleReveal {
+  from { opacity: 0; letter-spacing: 0.8em; filter: blur(10px); }
+  to { opacity: 1; letter-spacing: 0.2em; filter: blur(0); }
+}
+
+/* Animated line under title */
+.title-glow::after {
+  content: '';
+  position: absolute;
+  bottom: -20px; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+  animation: expandLine 2s 0.8s forwards cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes expandLine {
+  to { width: 60%; }
+}
+
+/* ==============================================================
+   PREMIUM GLASS PANELS
+   ============================================================== */
+.glass-panel {
+  background: rgba(10, 5, 5, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(197, 160, 89, 0.15);
+  border-radius: 4px;
+  padding: 40px;
+  width: 100%;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+  margin: 0 auto;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  animation: panelPulse 6s infinite ease-in-out, borderGlow 8s infinite ease-in-out;
+  /* ADDON 9: animated border glow */
+}
+
+.glass-panel:hover {
+  box-shadow:
+    0 30px 60px -12px rgba(0, 0, 0, 0.9),
+    0 0 40px rgba(139, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Top gold accent bar */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+  opacity: 0.3;
+}
+
+.glass-panel h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 30px;
+  color: var(--accent-gold);
+}
+
+/* ==============================================================
+   INPUTS
+   ============================================================== */
+.input-field {
+  width: 100%;
+  padding: 18px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--fg);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  outline: none;
+  margin-bottom: 25px;
+  border-radius: 2px;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.input-field:focus {
+  border-color: var(--accent-gold);
+  background: rgba(139, 0, 0, 0.05);
+  box-shadow: 0 0 30px rgba(197, 160, 89, 0.15), 0 0 60px rgba(139, 0, 0, 0.1);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.85rem;
+}
+
+/* ==============================================================
+   BUTTONS
+   ============================================================== */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.3), rgba(139, 0, 0, 0.1));
+  color: var(--fg);
+  border: 1px solid rgba(139, 0, 0, 0.4);
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.1em;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer sweep on hover */
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.7s ease;
+}
+
+.btn:hover {
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.6), rgba(139, 0, 0, 0.3));
+  border-color: #b30000;
+  box-shadow: 0 0 40px rgba(139, 0, 0, 0.5), 0 0 80px rgba(139, 0, 0, 0.2);
+  transform: translateY(-3px);
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.4), rgba(139, 0, 0, 0.15));
+}
+
+/* ==============================================================
+   ROLE TEXT
+   ============================================================== */
+.role-reveal h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 10px;
+}
+.role-traitor {
+  color: var(--accent-red);
+  text-shadow: 0 0 30px rgba(158, 27, 27, 0.4);
+}
+.role-innocent {
+  color: var(--fg);
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+/* ==============================================================
+   ADMIN GRID
+   ============================================================== */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-top: 30px;
+  width: 100%;
+}
+
+.stat-card {
+  background: rgba(10, 5, 5, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--panel-border);
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  border-radius: 4px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(197, 160, 89, 0.4);
+  box-shadow: 0 15px 40px rgba(139, 0, 0, 0.15);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 3px; height: 100%;
+  background: var(--accent-gold);
+}
+
+.stat-value {
+  font-family: 'Cinzel', serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-top: 15px;
+}
+
+.player-list {
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 25px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-weight: 400;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  transition: background 0.3s ease;
+}
+.player-item:hover {
+  background: rgba(139, 0, 0, 0.08);
+}
+.player-item:last-child { border-bottom: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(197, 160, 89, 0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(197, 160, 89, 0.6); }
+
+/* ======================================================
+   ADDON 11: ANIMATED GRADIENT INPUT BORDER ON FOCUS
+   ====================================================== */
+.input-field:focus {
+  border-image: linear-gradient(135deg, var(--accent-gold), var(--accent-red), var(--accent-gold)) 1;
+  animation: inputGlow 2s infinite ease-in-out;
+}
+
+@keyframes inputGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(197, 160, 89, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(139, 0, 0, 0.25), 0 0 80px rgba(197, 160, 89, 0.1); }
+}
+
+/* ======================================================
+   ADDON 12: SKULL WATERMARK ON ELIMINATED STATE
+   ====================================================== */
+.eliminated-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.eliminated-card::after {
+  content: '☠';
+  position: absolute;
+  font-size: 15rem;
+  opacity: 0.04;
+  bottom: -30px; right: -20px;
+  transform: rotate(-15deg);
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ======================================================
+   ADDON 13: GOLDEN VICTORY SPARKLE PARTICLES
+   ====================================================== */
+.victory-sparkles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sparkle {
+  position: absolute;
+  width: 4px; height: 4px;
+  background: var(--accent-gold);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--accent-gold), 0 0 12px rgba(197, 160, 89, 0.5);
+  animation: sparkleFloat linear infinite;
+}
+
+@keyframes sparkleFloat {
+  0% { transform: translateY(100%) scale(0); opacity: 0; }
+  20% { opacity: 1; transform: translateY(80%) scale(1); }
+  100% { transform: translateY(-200%) scale(0); opacity: 0; }
+}
+
+/* ======================================================
+   ADDON 14: STAGGERED LIST ENTRANCE ANIMATION
+   ====================================================== */
+.stagger-enter .player-item {
+  animation: staggerSlide 0.4s ease-out both;
+}
+
+.stagger-enter .player-item:nth-child(1) { animation-delay: 0s; }
+.stagger-enter .player-item:nth-child(2) { animation-delay: 0.05s; }
+.stagger-enter .player-item:nth-child(3) { animation-delay: 0.1s; }
+.stagger-enter .player-item:nth-child(4) { animation-delay: 0.15s; }
+.stagger-enter .player-item:nth-child(5) { animation-delay: 0.2s; }
+.stagger-enter .player-item:nth-child(6) { animation-delay: 0.25s; }
+.stagger-enter .player-item:nth-child(7) { animation-delay: 0.3s; }
+.stagger-enter .player-item:nth-child(8) { animation-delay: 0.35s; }
+.stagger-enter .player-item:nth-child(9) { animation-delay: 0.4s; }
+.stagger-enter .player-item:nth-child(10) { animation-delay: 0.45s; }
+
+@keyframes staggerSlide {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ======================================================
+   ADDON 15: TRAITOR ROLE BREATHING PULSE
+   ====================================================== */
+.role-traitor {
+  animation: traitorPulse 3s infinite ease-in-out;
+}
+
+@keyframes traitorPulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(158, 27, 27, 0.3); }
+  50% { text-shadow: 0 0 40px rgba(255, 0, 0, 0.6), 0 0 80px rgba(158, 27, 27, 0.3); }
+}
+
+.role-innocent {
+  animation: innocentGlow 4s infinite ease-in-out;
+}
+
+@keyframes innocentGlow {
+  0%, 100% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.15); }
+  50% { text-shadow: 0 0 30px rgba(255, 255, 255, 0.3), 0 0 60px rgba(200, 200, 255, 0.15); }
+}
+
+/* ======================================================
+   ADDON 16: ROUND TRANSITION FLASH OVERLAY
+   ====================================================== */
+.round-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: white;
+  pointer-events: none;
+  animation: flashBang 0.6s ease-out forwards;
+}
+
+@keyframes flashBang {
+  0% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+
+/* ======================================================
+   ADDON 17: BUTTON RIPPLE EFFECT
+   ====================================================== */
+.btn::after {
+  content: '';
+  position: absolute;
+  width: 0; height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease, opacity 0.6s ease;
+  opacity: 0;
+}
+
+.btn:active::after {
+  width: 400px; height: 400px;
+  opacity: 0;
+  transition: 0s;
+}
+
+/* ======================================================
+   ADDON 18: PREMIUM WAITING SPINNER (pulsing rings)
+   ====================================================== */
+.waiting-spinner {
+  position: relative;
+  width: 60px; height: 60px;
+  margin: 1.5rem auto;
+}
+
+.waiting-spinner::before,
+.waiting-spinner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--accent-red);
+  border-radius: 50%;
+  animation: spinRing 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.waiting-spinner::after {
+  inset: 8px;
+  border-top-color: var(--accent-gold);
+  animation-delay: -0.4s;
+  animation-direction: reverse;
+}
+
+.waiting-spinner-inner {
+  position: absolute;
+  inset: 16px;
+  border: 2px solid transparent;
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spinRing 2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  animation-delay: -0.8s;
+}
+
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
+}
+
+/* ======================================================
+   ADDON 19: ROLE CARD FLIP REVEAL
+   ====================================================== */
+.role-card-flip {
+  perspective: 1000px;
+}
+
+.role-card-inner {
+  animation: flipReveal 1s ease-out both;
+  transform-style: preserve-3d;
+}
+
+@keyframes flipReveal {
+  0% { transform: rotateY(180deg) scale(0.8); opacity: 0; }
+  60% { transform: rotateY(-10deg) scale(1.05); opacity: 1; }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+
+/* ======================================================
+   ADDON 20: BLOOD SPLATTER ON ELIMINATED
+   ====================================================== */
+.blood-splatter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.blood-splatter::before {
+  content: '';
+  position: absolute;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(158, 27, 27, 0.3) 0%, transparent 70%);
+  top: -50px; right: -50px;
+  filter: blur(20px);
+  animation: splatPulse 4s infinite ease-in-out;
+}
+
+.blood-splatter::after {
+  content: '';
+  position: absolute;
+  width: 150px; height: 150px;
+  background: radial-gradient(circle, rgba(139, 0, 0, 0.25) 0%, transparent 70%);
+  bottom: -30px; left: -30px;
+  filter: blur(15px);
+  animation: splatPulse 5s 1s infinite ease-in-out;
+}
+
+@keyframes splatPulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.3); opacity: 0.8; }
+}
+
+/* ======================================================
+   ADDON 21: GLOWING STATUS DOT INDICATORS
+   ====================================================== */
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.status-dot.alive {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  animation: dotPulse 2s infinite ease-in-out;
+}
+
+.status-dot.eliminated {
+  background: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 4px var(--accent-green); }
+  50% { box-shadow: 0 0 12px var(--accent-green), 0 0 20px rgba(58, 125, 68, 0.3); }
+}
+
+/* ======================================================
+   ADDON 22: ANIMATED STAT COUNTER (count-up style)
+   ====================================================== */
+.stat-value {
+  animation: counterPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes counterPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ======================================================
+   ADDON 23: DANGER BUTTON STYLE
+   ====================================================== */
+.btn-danger {
+  background: linear-gradient(135deg, rgba(158, 27, 27, 0.5), rgba(158, 27, 27, 0.2));
+  border-color: rgba(158, 27, 27, 0.6);
+  color: #ff6b6b;
+  font-size: 0.85rem;
+}
+
+.btn-danger:hover {
+  background: rgba(158, 27, 27, 0.7);
+  box-shadow: 0 0 30px rgba(158, 27, 27, 0.5);
+  border-color: #ff3333;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+}
+
+.btn-outline:hover {
+  background: rgba(197, 160, 89, 0.1);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 20px rgba(197, 160, 89, 0.2);
+}
+
+/* ======================================================
+   ADDON 24: SMOOTH CROSS-FADE PAGE TRANSITIONS
+   ====================================================== */
+.page-transition-enter {
+  animation: pageFadeIn 0.5s ease-out both;
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: scale(0.98); filter: blur(4px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+/* ======================================================
+   ADDON 25: PULSING LIVE DOT
+   ====================================================== */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-red);
+  margin-bottom: 1rem;
+}
+
+.live-dot {
+  width: 8px; height: 8px;
+  background: var(--accent-red);
+  border-radius: 50%;
+  animation: livePulse 1.5s infinite ease-in-out;
+  box-shadow: 0 0 8px var(--accent-red);
+}
+
+@keyframes livePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+/* ======================================================
+   ADDON 26: GRADIENT ROUND HEADER TEXT
+   ====================================================== */
+.round-header {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--accent-gold), #fff, var(--accent-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+/* ======================================================
+   ADDON 27: SHIMMER LOADING SKELETON
+   ====================================================== */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ======================================================
+   ADDON 28: ANIMATED HR DIVIDERS
+   ====================================================== */
+.animated-divider {
+  border: none;
+  height: 1px;
+  margin: 1.5rem 0;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), var(--accent-red), var(--accent-gold), transparent);
+  background-size: 200% 100%;
+  animation: dividerSlide 6s infinite linear;
+}
+
+@keyframes dividerSlide {
+  from { background-position: 0% 0; }
+  to { background-position: 200% 0; }
+}
+
+/* ======================================================
+   ADDON 29: ROLE BADGES
+   ====================================================== */
+.role-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.role-badge.traitor {
+  background: rgba(158, 27, 27, 0.2);
+  border: 1px solid rgba(158, 27, 27, 0.4);
+  color: #ff6b6b;
+}
+
+.role-badge.innocent {
+  background: rgba(61, 90, 128, 0.2);
+  border: 1px solid rgba(61, 90, 128, 0.4);
+  color: #7ba7cc;
+}
+
+/* ======================================================
+   ADDON 30: WINNER CROWN BOUNCE
+   ====================================================== */
+.crown-icon {
+  animation: crownBounce 2s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes crownBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(-5deg); }
+  75% { transform: translateY(-10px) rotate(5deg); }
+}
+
+/* Winner glow effect */
+.winner-glow {
+  text-shadow: 0 0 20px var(--accent-gold), 0 0 40px rgba(197, 160, 89, 0.5), 0 0 80px rgba(197, 160, 89, 0.3);
+  animation: winnerShine 3s infinite ease-in-out;
+}
+
+@keyframes winnerShine {
+  0%, 100% { text-shadow: 0 0 20px var(--accent-gold), 0 0 40px rgba(197, 160, 89, 0.3); }
+  50% { text-shadow: 0 0 30px var(--accent-gold), 0 0 60px rgba(197, 160, 89, 0.6), 0 0 100px rgba(197, 160, 89, 0.3); }
+}
+
+/* ==============================================================
+   RESPONSIVE
+   ============================================================== */
+@media (max-width: 600px) {
+  .title-glow { font-size: 2.8rem; letter-spacing: 0.05em; }
+  .glass-panel { padding: 25px; }
+  .input-field, .btn { font-size: 1rem; padding: 16px; }
+  .admin-grid { grid-template-columns: 1fr; }
+  .subtitle-flicker { font-size: 0.7rem; letter-spacing: 0.2em; }
+}
