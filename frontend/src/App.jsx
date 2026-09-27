@@ -6,7 +6,11 @@ import AdminView from './components/AdminView';
 
 // Automatically use the same host for production deployment
 const SOCKET_URL = import.meta.env.PROD ? undefined : `http://${window.location.hostname}:3001`;
-export const socket = io(SOCKET_URL);
+export const socket = io(SOCKET_URL, {
+  transports: ['websocket', 'polling'],
+  reconnectionAttempts: 15,
+  reconnectionDelay: 1000
+});
 
 function App() {
   const [gameState, setGameState] = useState({ players: [], currentRound: '0' });

@@ -4,11 +4,14 @@ const { Server } = require('socket.io');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
 
 const app = express();
 app.use(cors());
+app.use(compression());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/dist'), {
+  maxAge: '1d',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -19,7 +22,9 @@ app.use(express.static(path.join(__dirname, '../frontend/dist'), {
 }));
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  transports: ['websocket', 'polling'],
+  perMessageDeflate: false
 });
 
 // Setup SQLite database
@@ -80,31 +85,55 @@ const getAllPlayers = () => {
   });
 };
 
-const broadcastState = async () => {
+// ==========================================
+// HIGH-CONCURRENCY IN-MEMORY STATE CACHE
+// ==========================================
+let stateCache = {
+  players: [],
+  currentRound: '0',
+  winnerId: '',
+  clues: {}
+};
+
+const syncStateFromDB = async () => {
   try {
     const players = await getAllPlayers();
-    const currentRound = await getConfig('current_round');
-    const winnerId = await getConfig('winner_id');
+    const currentRound = (await getConfig('current_round')) || '0';
+    const winnerId = (await getConfig('winner_id')) || '';
     const cluesRaw = await getConfig('group_clues');
     let clues = {};
     try { if (cluesRaw) clues = JSON.parse(cluesRaw); } catch(e) {}
-    io.emit('state_update', { players, currentRound, winnerId, clues });
+    stateCache = { players, currentRound, winnerId, clues };
+    return stateCache;
   } catch (err) {
-    console.error('Failed to broadcast state', err);
+    console.error('Failed to sync state from DB:', err);
+    return stateCache;
   }
 };
 
-io.on('connection', async (socket) => {
-  console.log('User connected:', socket.id);
+// Initial sync from DB
+setTimeout(syncStateFromDB, 300);
 
-  // Send initial state to the connected client
-  const players = await getAllPlayers();
-  const currentRound = await getConfig('current_round');
-  const winnerId = await getConfig('winner_id');
-  const cluesRaw = await getConfig('group_clues');
-  let clues = {};
-  try { if (cluesRaw) clues = JSON.parse(cluesRaw); } catch(e) {}
-  socket.emit('state_update', { players, currentRound, winnerId, clues });
+let broadcastTimer = null;
+const broadcastState = (immediate = false) => {
+  const emitUpdate = () => {
+    io.emit('state_update', stateCache);
+    broadcastTimer = null;
+  };
+
+  if (immediate) {
+    if (broadcastTimer) clearTimeout(broadcastTimer);
+    emitUpdate();
+  } else {
+    if (!broadcastTimer) {
+      broadcastTimer = setTimeout(emitUpdate, 200);
+    }
+  }
+};
+
+io.on('connection', (socket) => {
+  // Instant response from memory (0 SQLite reads per connection!)
+  socket.emit('state_update', stateCache);
 
   socket.on('register', (data) => {
     const { id, name } = data;
@@ -112,19 +141,38 @@ io.on('connection', async (socket) => {
     if (!cleanPlayerNumber) {
       return socket.emit('error', 'Player number must be digits only');
     }
-    db.run(`INSERT INTO players (id, name) VALUES (?, ?)`, [id, cleanPlayerNumber], (err) => {
+
+    const existing = stateCache.players.find(p => p.id === id);
+    if (existing) {
+      return socket.emit('state_update', stateCache);
+    }
+
+    const newPlayer = {
+      id,
+      name: cleanPlayerNumber,
+      role: 'Pending',
+      status: 'Alive',
+      round1_group: null,
+      round2_group: null,
+      round3_group: null,
+      round4_group: null
+    };
+
+    // Immediate in-memory registration
+    stateCache.players.push(newPlayer);
+    
+    // Batch-debounced broadcast (50 joins in 200ms = 1 broadcast)
+    broadcastState(false);
+
+    // Asynchronous database write
+    db.run(`INSERT OR IGNORE INTO players (id, name) VALUES (?, ?)`, [id, cleanPlayerNumber], (err) => {
       if (err) {
-        console.error('Registration error', err);
-        socket.emit('error', 'Could not register');
-      } else {
-        broadcastState();
+        console.error('Registration DB error:', err);
       }
     });
   });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
+  socket.on('disconnect', () => {});
 });
 
 // Helper to group and assign roles for Round 1 / The Relic Trial
@@ -205,8 +253,9 @@ app.post('/api/admin/start-trial', async (req, res) => {
     });
     db.run(`UPDATE config SET value = 'trial' WHERE key = 'current_round'`);
     db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
-    db.run('COMMIT', () => {
-      broadcastState();
+    db.run('COMMIT', async () => {
+      await syncStateFromDB();
+      broadcastState(true);
       res.json({ success: true, count: updates.length });
     });
   });
@@ -225,8 +274,9 @@ app.post('/api/admin/start-round1', async (req, res) => {
       db.run('BEGIN TRANSACTION');
       db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
       db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
-      db.run('COMMIT', () => {
-        broadcastState();
+      db.run('COMMIT', async () => {
+        await syncStateFromDB();
+        broadcastState(true);
         res.json({ success: true, message: 'Advanced to Round 1 with existing groups' });
       });
     });
@@ -240,8 +290,9 @@ app.post('/api/admin/start-round1', async (req, res) => {
       });
       db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
       db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
-      db.run('COMMIT', () => {
-        broadcastState();
+      db.run('COMMIT', async () => {
+        await syncStateFromDB();
+        broadcastState(true);
         res.json({ success: true });
       });
     });
@@ -251,13 +302,11 @@ app.post('/api/admin/start-round1', async (req, res) => {
 // Admin endpoint: Update clue for a group
 app.post('/api/admin/set-clue', async (req, res) => {
   const { group, clue } = req.body;
-  const currentCluesRaw = await getConfig('group_clues');
-  let clues = {};
-  try { if (currentCluesRaw) clues = JSON.parse(currentCluesRaw); } catch(e) {}
-  clues[group] = clue;
-  await setConfig('group_clues', JSON.stringify(clues));
-  broadcastState();
-  res.json({ success: true, clues });
+  if (!stateCache.clues) stateCache.clues = {};
+  stateCache.clues[group] = clue;
+  await setConfig('group_clues', JSON.stringify(stateCache.clues));
+  broadcastState(true);
+  res.json({ success: true, clues: stateCache.clues });
 });
 
 app.post('/api/admin/start-round2', async (req, res) => {
@@ -315,8 +364,9 @@ app.post('/api/admin/start-round2', async (req, res) => {
     });
     db.run(`UPDATE config SET value = '2' WHERE key = 'current_round'`);
     db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
-    db.run('COMMIT', () => {
-      broadcastState();
+    db.run('COMMIT', async () => {
+      await syncStateFromDB();
+      broadcastState(true);
       res.json({ success: true });
     });
   });
@@ -341,8 +391,9 @@ app.post('/api/admin/start-round3', async (req, res) => {
     }
 
     db.run(`UPDATE config SET value = '3' WHERE key = 'current_round'`);
-    db.run('COMMIT', () => {
-      broadcastState();
+    db.run('COMMIT', async () => {
+      await syncStateFromDB();
+      broadcastState(true);
       res.json({ success: true });
     });
   });
@@ -353,8 +404,9 @@ app.post('/api/admin/start-round4', async (req, res) => {
     db.run('BEGIN TRANSACTION');
     db.run(`UPDATE players SET round4_group = 1 WHERE status = 'Alive'`);
     db.run(`UPDATE config SET value = '4' WHERE key = 'current_round'`);
-    db.run('COMMIT', () => {
-      broadcastState();
+    db.run('COMMIT', async () => {
+      await syncStateFromDB();
+      broadcastState(true);
       res.json({ success: true });
     });
   });
@@ -362,12 +414,13 @@ app.post('/api/admin/start-round4', async (req, res) => {
 
 app.post('/api/admin/eliminate', (req, res) => {
   const { id } = req.body;
+  const p = stateCache.players.find(pl => pl.id === id);
+  if (p) p.status = 'Eliminated';
+  broadcastState(true);
+
   db.run(`UPDATE players SET status = 'Eliminated' WHERE id = ?`, [id], (err) => {
     if (err) res.status(500).json({ error: err.message });
-    else {
-      broadcastState();
-      res.json({ success: true });
-    }
+    else res.json({ success: true });
   });
 });
 
@@ -376,42 +429,43 @@ app.post('/api/admin/set-role', (req, res) => {
   if (!['Traitor', 'Innocent'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
+  const p = stateCache.players.find(pl => pl.id === id);
+  if (p) p.role = role;
+  broadcastState(true);
+
   db.run(`UPDATE players SET role = ? WHERE id = ?`, [role, id], (err) => {
     if (err) res.status(500).json({ error: err.message });
-    else {
-      broadcastState();
-      res.json({ success: true });
-    }
+    else res.json({ success: true });
   });
 });
 
 // Admin endpoint: Manually assign a player to any group
 app.post('/api/admin/set-player-group', async (req, res) => {
   const { id, group } = req.body;
-  const currentRound = (await getConfig('current_round')) || '0';
+  const currentRound = stateCache.currentRound || '0';
   
   let col = 'round1_group';
   if (currentRound === '2') col = 'round2_group';
   else if (currentRound === '3') col = 'round3_group';
   else if (currentRound === '4') col = 'round4_group';
-  else col = 'round1_group';
 
   const groupNum = parseInt(group, 10);
   const finalGroup = isNaN(groupNum) || groupNum <= 0 ? null : groupNum;
 
+  const p = stateCache.players.find(pl => pl.id === id);
+  if (p) p[col] = finalGroup;
+  broadcastState(true);
+
   db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [finalGroup, id], (err) => {
     if (err) res.status(500).json({ error: err.message });
-    else {
-      broadcastState();
-      res.json({ success: true, group: finalGroup });
-    }
+    else res.json({ success: true, group: finalGroup });
   });
 });
 
 // Admin endpoint: Auto-assign / randomize players into groups based on the round's design
 app.post('/api/admin/randomize-groups', async (req, res) => {
   const { onlyUnassigned = false } = req.body;
-  const currentRound = (await getConfig('current_round')) || '0';
+  const currentRound = stateCache.currentRound || '0';
   
   let col = 'round1_group';
   let designedSize = 10;
@@ -419,8 +473,7 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
   else if (currentRound === '3') { col = 'round3_group'; designedSize = 2; }
   else if (currentRound === '4') { col = 'round4_group'; designedSize = 15; }
 
-  let players = await getAllPlayers();
-  let alivePlayers = players.filter(p => p.status === 'Alive');
+  let alivePlayers = stateCache.players.filter(p => p.status === 'Alive');
   
   if (onlyUnassigned) {
     const unassigned = alivePlayers.filter(p => !p[col] || p[col] <= 0);
@@ -428,7 +481,6 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
       return res.json({ success: true, message: 'No unassigned players' });
     }
 
-    // Count how many players are in each existing group
     const groupCounts = {};
     alivePlayers.forEach(p => {
       const g = p[col];
@@ -440,7 +492,6 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
       shuffled.forEach((p) => {
-        // Find existing group that has space (< designedSize)
         let targetGroup = null;
         const existingGroups = Object.keys(groupCounts).map(Number).sort((a,b) => a - b);
         for (const g of existingGroups) {
@@ -449,30 +500,32 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
             break;
           }
         }
-        // If all existing groups are full or none exist yet, create next group
         if (!targetGroup) {
           const maxGroup = existingGroups.length > 0 ? Math.max(...existingGroups) : 0;
           targetGroup = maxGroup + 1;
         }
         groupCounts[targetGroup] = (groupCounts[targetGroup] || 0) + 1;
+        p[col] = targetGroup;
         db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [targetGroup, p.id]);
       });
-      db.run('COMMIT', () => {
-        broadcastState();
+      db.run('COMMIT', async () => {
+        await syncStateFromDB();
+        broadcastState(true);
         res.json({ success: true, assignedCount: shuffled.length });
       });
     });
   } else {
-    // Randomize all alive players according to the round's designed group size
     const shuffled = alivePlayers.sort(() => Math.random() - 0.5);
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
       shuffled.forEach((p, idx) => {
         const gNum = 1 + Math.floor(idx / designedSize);
+        p[col] = gNum;
         db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [gNum, p.id]);
       });
-      db.run('COMMIT', () => {
-        broadcastState();
+      db.run('COMMIT', async () => {
+        await syncStateFromDB();
+        broadcastState(true);
         res.json({ success: true, assignedCount: shuffled.length });
       });
     });
@@ -481,24 +534,31 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
 
 app.post('/api/admin/set-winner', (req, res) => {
   const { id } = req.body;
+  stateCache.winnerId = id;
+  broadcastState(true);
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     db.run(`UPDATE config SET value = ? WHERE key = 'winner_id'`, [id]);
     db.run('COMMIT', () => {
-      broadcastState();
       res.json({ success: true });
     });
   });
 });
 
 app.post('/api/admin/reset', (req, res) => {
+  stateCache = {
+    players: [],
+    currentRound: '0',
+    winnerId: '',
+    clues: {}
+  };
+  broadcastState(true);
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     db.run(`DELETE FROM players`);
     db.run(`UPDATE config SET value = '0' WHERE key = 'current_round'`);
     db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
     db.run('COMMIT', () => {
-      broadcastState();
       res.json({ success: true });
     });
   });
