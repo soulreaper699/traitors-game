@@ -350,6 +350,76 @@ app.post('/api/admin/set-role', (req, res) => {
   });
 });
 
+// Admin endpoint: Manually assign a player to any group
+app.post('/api/admin/set-player-group', async (req, res) => {
+  const { id, group } = req.body;
+  const currentRound = (await getConfig('current_round')) || '0';
+  
+  let col = 'round1_group';
+  if (currentRound === '2') col = 'round2_group';
+  else if (currentRound === '3') col = 'round3_group';
+  else if (currentRound === '4') col = 'round4_group';
+  else col = 'round1_group';
+
+  const groupNum = parseInt(group, 10);
+  const finalGroup = isNaN(groupNum) || groupNum <= 0 ? null : groupNum;
+
+  db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [finalGroup, id], (err) => {
+    if (err) res.status(500).json({ error: err.message });
+    else {
+      broadcastState();
+      res.json({ success: true, group: finalGroup });
+    }
+  });
+});
+
+// Admin endpoint: Auto-assign / randomize players into groups of N
+app.post('/api/admin/randomize-groups', async (req, res) => {
+  const { groupSize = 2, onlyUnassigned = false } = req.body;
+  const currentRound = (await getConfig('current_round')) || '0';
+  
+  let col = 'round1_group';
+  if (currentRound === '2') col = 'round2_group';
+  else if (currentRound === '3') col = 'round3_group';
+  else if (currentRound === '4') col = 'round4_group';
+
+  let players = await getAllPlayers();
+  let alivePlayers = players.filter(p => p.status === 'Alive');
+  
+  let targetPlayers = alivePlayers;
+  let baseGroup = 1;
+
+  if (onlyUnassigned) {
+    targetPlayers = alivePlayers.filter(p => !p[col] || p[col] <= 0);
+    // Find the highest existing group number
+    const existingGroups = alivePlayers.map(p => p[col] || 0);
+    const maxGroup = Math.max(0, ...existingGroups);
+    baseGroup = maxGroup > 0 ? maxGroup : 1;
+  }
+
+  if (targetPlayers.length === 0) {
+    return res.json({ success: true, message: 'No players to assign' });
+  }
+
+  // Shuffle target players
+  const shuffled = targetPlayers.sort(() => Math.random() - 0.5);
+  const size = Math.max(1, parseInt(groupSize, 10) || 2);
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    shuffled.forEach((p, idx) => {
+      const gNum = onlyUnassigned 
+        ? baseGroup + Math.floor(idx / size)
+        : 1 + Math.floor(idx / size);
+      db.run(`UPDATE players SET ${col} = ? WHERE id = ?`, [gNum, p.id]);
+    });
+    db.run('COMMIT', () => {
+      broadcastState();
+      res.json({ success: true, assignedCount: shuffled.length });
+    });
+  });
+});
+
 app.post('/api/admin/set-winner', (req, res) => {
   const { id } = req.body;
   db.serialize(() => {

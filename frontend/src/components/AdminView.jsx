@@ -64,6 +64,50 @@ export default function AdminView({ gameState }) {
     }
   };
 
+  const [customGroupSize, setCustomGroupSize] = useState(2);
+
+  const handleSetPlayerGroup = async (id, groupVal) => {
+    let group = groupVal;
+    if (groupVal === 'custom') {
+      const entered = prompt('Enter group number:');
+      if (!entered) return;
+      group = parseInt(entered, 10);
+      if (isNaN(group) || group <= 0) return alert('Invalid group number');
+    }
+    try {
+      await fetch(`${API_URL}/api/admin/set-player-group`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, group: group === '' ? null : group })
+      });
+    } catch (err) {
+      alert('Failed to update group: ' + err.message);
+    }
+  };
+
+  const handleRandomizeGroups = async (onlyUnassigned = false) => {
+    const size = parseInt(customGroupSize, 10) || 2;
+    if (!window.confirm(onlyUnassigned 
+      ? `Auto-assign all unassigned players into groups of ${size}?`
+      : `Re-shuffle ALL alive players into groups of ${size}?`)) return;
+    try {
+      await fetch(`${API_URL}/api/admin/randomize-groups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupSize: size, onlyUnassigned })
+      });
+    } catch (err) {
+      alert('Failed to randomize groups: ' + err.message);
+    }
+  };
+
+  const getPlayerGroup = (p) => {
+    if (currentRound === '2') return p.round2_group;
+    if (currentRound === '3') return p.round3_group;
+    if (currentRound === '4') return p.round4_group;
+    return p.round1_group;
+  };
+
   const handleSaveClue = async (group, text) => {
     try {
       await fetch(`${API_URL}/api/admin/set-clue`, {
@@ -177,13 +221,72 @@ export default function AdminView({ gameState }) {
         </div>
       </div>
 
+      {/* GROUP & SQUAD MANAGER TOOLBAR */}
+      <div className="glass-panel" style={{ marginBottom: '2rem', border: '1px solid rgba(197, 160, 89, 0.35)' }}>
+        <h3 style={{ color: 'var(--accent-gold)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          🎲 Group & Squad Setup
+        </h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          Distribute players into groups automatically (e.g. groups of 2, 4, 10), or assign individual players to any group below:
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--fg)' }}>Group Size:</span>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={customGroupSize}
+              onChange={(e) => setCustomGroupSize(e.target.value)}
+              style={{
+                width: '60px',
+                padding: '8px',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid var(--accent-gold)',
+                color: '#fff',
+                borderRadius: '4px',
+                textAlign: 'center',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+          <button
+            className="btn btn-primary"
+            style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+            onClick={() => handleRandomizeGroups(false)}
+          >
+            🎲 Randomize ALL into Groups of {customGroupSize}
+          </button>
+          {displayGroups['?'] && displayGroups['?'].length > 0 && (
+            <button
+              className="btn btn-outline"
+              style={{ padding: '8px 14px', fontSize: '0.85rem', color: 'var(--accent-gold)', borderColor: 'var(--accent-gold)' }}
+              onClick={() => handleRandomizeGroups(true)}
+            >
+              ➕ Auto-Assign {displayGroups['?'].length} Unassigned Player(s)
+            </button>
+          )}
+        </div>
+      </div>
+
       <h2 style={{ marginBottom: '1rem' }}>Alive Players by Group</h2>
       <div className="admin-grid">
         {Object.keys(displayGroups).sort((a,b) => a.localeCompare(b)).map(group => (
           <div key={group} className="glass-panel">
-            <h3 style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)' }}>
-              {group === '?' ? (currentRound === '0' ? 'Lobby / Waiting' : 'Unassigned') : `Group ${group}`} ({displayGroups[group].length} Players)
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)', flexWrap: 'wrap', gap: '6px' }}>
+              <h3 style={{ margin: 0 }}>
+                {group === '?' ? (currentRound === '0' ? 'Lobby / Waiting' : 'Unassigned') : `Group ${group}`} ({displayGroups[group].length} Players)
+              </h3>
+              {group === '?' && displayGroups['?'].length > 0 && (
+                <button
+                  className="btn btn-outline"
+                  style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-gold)', borderColor: 'var(--accent-gold)' }}
+                  onClick={() => handleRandomizeGroups(true)}
+                >
+                  🎲 Auto-Assign into Groups
+                </button>
+              )}
+            </div>
 
             {group !== '?' && (
               <div style={{ margin: '0.5rem 0 1rem 0', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', border: '1px solid rgba(197, 160, 89, 0.2)' }}>
@@ -223,7 +326,34 @@ export default function AdminView({ gameState }) {
                       {p.role} ⇄
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Manual Group Selector Dropdown */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Group:</span>
+                      <select
+                        value={getPlayerGroup(p) || ''}
+                        onChange={(e) => handleSetPlayerGroup(p.id, e.target.value)}
+                        style={{
+                          background: 'rgba(0,0,0,0.7)',
+                          color: getPlayerGroup(p) ? 'var(--accent-gold)' : 'var(--text-muted)',
+                          border: `1px solid ${getPlayerGroup(p) ? 'var(--accent-gold)' : 'rgba(255,255,255,0.2)'}`,
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">Unassigned</option>
+                        <option value="1">Group 1</option>
+                        <option value="2">Group 2</option>
+                        <option value="3">Group 3</option>
+                        <option value="4">Group 4</option>
+                        <option value="5">Group 5</option>
+                        <option value="6">Group 6</option>
+                        <option value="custom">+ Custom #...</option>
+                      </select>
+                    </div>
+
                     <button
                       className="btn btn-outline"
                       style={{
