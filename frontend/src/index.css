@@ -962,12 +962,210 @@ body::after {
 }
 
 /* ==============================================================
-   RESPONSIVE
+   RESPONSIVE — TABLETS
    ============================================================== */
-@media (max-width: 600px) {
-  .title-glow { font-size: 2.8rem; letter-spacing: 0.05em; }
-  .glass-panel { padding: 25px; }
-  .input-field, .btn { font-size: 1rem; padding: 16px; }
-  .admin-grid { grid-template-columns: 1fr; }
-  .subtitle-flicker { font-size: 0.7rem; letter-spacing: 0.2em; }
+@media (max-width: 768px) {
+  .title-glow { font-size: 3rem; letter-spacing: 0.08em; }
+  .glass-panel { padding: 28px 20px; }
+  .admin-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .app-container { padding: 2rem 0.75rem; }
+
+  .orb-1 { width: 500px; height: 500px; }
+  .orb-2 { width: 350px; height: 350px; }
+  .orb-3 { width: 400px; height: 400px; }
+}
+
+/* ==============================================================
+   RESPONSIVE — PHONES
+   ============================================================== */
+@media (max-width: 480px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-container {
+    padding: 1.5rem 0.75rem;
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
+  .center-content {
+    min-height: 85dvh;
+    padding: 0 0.25rem;
+  }
+
+  /* Title */
+  .title-glow {
+    font-size: 2.2rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 1.5rem;
+  }
+
+  .title-glow::after {
+    bottom: -12px;
+  }
+
+  .subtitle-flicker {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+  }
+
+  /* Glass panels */
+  .glass-panel {
+    padding: 20px 16px;
+    border-radius: 6px;
+  }
+
+  .glass-panel h2 {
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Inputs — touch friendly */
+  .input-field {
+    padding: 16px 14px;
+    font-size: 1rem;
+    margin-bottom: 16px;
+    border-radius: 4px;
+  }
+
+  /* Buttons — bigger tap targets */
+  .btn {
+    padding: 16px 14px;
+    font-size: 0.95rem;
+    min-height: 48px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-danger, .btn-outline {
+    font-size: 0.8rem;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+
+  /* Role reveal */
+  .role-reveal h1 {
+    font-size: 2.5rem;
+  }
+
+  .role-card-flip .role-reveal h1 {
+    font-size: 2.5rem;
+  }
+
+  /* Admin grid */
+  .admin-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 20px 16px;
+  }
+
+  .stat-value {
+    font-size: 2.5rem;
+  }
+
+  /* Player list */
+  .player-item {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .player-item > div:last-child {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .player-item > div:last-child .btn {
+    flex: 1;
+  }
+
+  /* Live indicator */
+  .live-indicator {
+    font-size: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Round header */
+  .round-header {
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Blood orbs — smaller for performance */
+  .orb-1 { width: 350px; height: 350px; filter: blur(80px); }
+  .orb-2 { width: 250px; height: 250px; filter: blur(60px); }
+  .orb-3 { width: 300px; height: 300px; filter: blur(70px); }
+
+  /* Reduce particles on mobile for performance */
+  .micro-particles .particle:nth-child(n+20) { display: none; }
+  .blood-drips .drip:nth-child(n+6) { display: none; }
+
+  /* Waiting spinner */
+  .waiting-spinner {
+    width: 48px;
+    height: 48px;
+    margin: 1rem auto;
+  }
+
+  /* Winner */
+  .crown-icon { font-size: 3rem !important; }
+  .winner-glow { font-size: 2rem !important; }
+
+  /* Role badges */
+  .role-badge {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+
+  /* Animated divider */
+  .animated-divider {
+    margin: 1rem 0;
+  }
+
+  /* Admin controls layout */
+  .glass-panel > div[style*="flex-wrap"] {
+    flex-direction: column;
+  }
+
+  /* Scrollbar — thinner on mobile */
+  ::-webkit-scrollbar { width: 3px; }
+}
+
+/* ==============================================================
+   RESPONSIVE — VERY SMALL PHONES (iPhone SE, etc.)
+   ============================================================== */
+@media (max-width: 360px) {
+  .title-glow {
+    font-size: 1.8rem;
+    letter-spacing: 0.02em;
+  }
+
+  .glass-panel {
+    padding: 16px 12px;
+  }
+
+  .glass-panel h2 {
+    font-size: 1.1rem;
+  }
+
+  .role-reveal h1 {
+    font-size: 2rem;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+  }
+
+  .btn {
+    font-size: 0.85rem;
+    padding: 14px 10px;
+  }
 }

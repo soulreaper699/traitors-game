@@ -105,7 +105,7 @@ export default function AdminView({ gameState }) {
 
       <div className="glass-panel" style={{ marginBottom: '2rem' }}>
         <h2 style={{ marginBottom: '1rem' }}>Game Controls (Current Round: {currentRound})</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round1')}>
             Start Round 1 (Groups of 10)
           </button>
