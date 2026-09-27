@@ -50,6 +50,20 @@ export default function AdminView({ gameState }) {
     }
   };
 
+  const handleToggleRole = async (id, currentRole) => {
+    const newRole = currentRole === 'Traitor' ? 'Innocent' : 'Traitor';
+    if (!window.confirm(`Change this player's role to ${newRole.toUpperCase()}?`)) return;
+    try {
+      await fetch(`${API_URL}/api/admin/set-role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, role: newRole })
+      });
+    } catch (err) {
+      alert('Role change failed: ' + err.message);
+    }
+  };
+
   // Group players for display based on current round
   let displayGroups = {};
   alivePlayers.forEach(p => {
@@ -126,21 +140,38 @@ export default function AdminView({ gameState }) {
         {Object.keys(displayGroups).sort((a,b) => a.localeCompare(b)).map(group => (
           <div key={group} className="glass-panel">
             <h3 style={{ marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)' }}>
-              Group {group} ({displayGroups[group].length} Players)
+              {group === '?' ? (currentRound === '0' ? 'Lobby / Waiting' : 'Unassigned') : `Group ${group}`} ({displayGroups[group].length} Players)
             </h3>
             <div className="player-list stagger-enter">
               {displayGroups[group].map(p => (
                 <div key={p.id} className="player-item">
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                     <span className="status-dot alive"></span>
                     <span style={{ fontWeight: 'bold' }}>{p.name}</span>
-                    <span className={`role-badge ${p.role === 'Traitor' ? 'traitor' : 'innocent'}`} style={{ marginLeft: '8px' }}>
-                      {p.role}
+                    <span
+                      className={`role-badge ${p.role === 'Traitor' ? 'traitor' : 'innocent'}`}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to toggle role"
+                      onClick={() => handleToggleRole(p.id, p.role)}
+                    >
+                      {p.role} ⇄
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-outline"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.8rem',
+                        color: p.role === 'Traitor' ? 'var(--accent-blue)' : 'var(--accent-red)',
+                        borderColor: p.role === 'Traitor' ? 'var(--accent-blue)' : 'var(--accent-red)'
+                      }}
+                      onClick={() => handleToggleRole(p.id, p.role)}
+                    >
+                      Make {p.role === 'Traitor' ? 'Innocent' : 'Traitor'}
+                    </button>
                     {currentRound === '4' && (
-                      <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-blue)', borderColor: 'var(--accent-blue)' }} onClick={() => handleDeclareWinner(p.id)}>
+                      <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-gold)', borderColor: 'var(--accent-gold)' }} onClick={() => handleDeclareWinner(p.id)}>
                         Winner
                       </button>
                     )}
@@ -155,6 +186,36 @@ export default function AdminView({ gameState }) {
           </div>
         ))}
       </div>
+
+      {eliminatedPlayers.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2 style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>Eliminated Players ({eliminatedPlayers.length})</h2>
+          <div className="glass-panel" style={{ opacity: 0.8 }}>
+            <div className="player-list">
+              {eliminatedPlayers.map(p => (
+                <div key={p.id} className="player-item" style={{ opacity: 0.65 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <span className="status-dot eliminated"></span>
+                    <span style={{ textDecoration: 'line-through' }}>{p.name}</span>
+                    <span className={`role-badge ${p.role === 'Traitor' ? 'traitor' : 'innocent'}`}>
+                      {p.role}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                      onClick={() => handleToggleRole(p.id, p.role)}
+                    >
+                      Change to {p.role === 'Traitor' ? 'Innocent' : 'Traitor'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );

@@ -233,6 +233,20 @@ app.post('/api/admin/eliminate', (req, res) => {
   });
 });
 
+app.post('/api/admin/set-role', (req, res) => {
+  const { id, role } = req.body;
+  if (!['Traitor', 'Innocent'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  db.run(`UPDATE players SET role = ? WHERE id = ?`, [role, id], (err) => {
+    if (err) res.status(500).json({ error: err.message });
+    else {
+      broadcastState();
+      res.json({ success: true });
+    }
+  });
+});
+
 app.post('/api/admin/set-winner', (req, res) => {
   const { id } = req.body;
   db.serialize(() => {
