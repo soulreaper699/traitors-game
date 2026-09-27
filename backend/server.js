@@ -48,6 +48,7 @@ db.serialize(() => {
   // Insert default config if not exists
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('current_round', '0')`);
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('winner_id', '')`);
+  db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('group_clues', '{}')`);
 });
 
 // Helper to get config
@@ -84,7 +85,10 @@ const broadcastState = async () => {
     const players = await getAllPlayers();
     const currentRound = await getConfig('current_round');
     const winnerId = await getConfig('winner_id');
-    io.emit('state_update', { players, currentRound, winnerId });
+    const cluesRaw = await getConfig('group_clues');
+    let clues = {};
+    try { if (cluesRaw) clues = JSON.parse(cluesRaw); } catch(e) {}
+    io.emit('state_update', { players, currentRound, winnerId, clues });
   } catch (err) {
     console.error('Failed to broadcast state', err);
   }
@@ -97,7 +101,10 @@ io.on('connection', async (socket) => {
   const players = await getAllPlayers();
   const currentRound = await getConfig('current_round');
   const winnerId = await getConfig('winner_id');
-  socket.emit('state_update', { players, currentRound, winnerId });
+  const cluesRaw = await getConfig('group_clues');
+  let clues = {};
+  try { if (cluesRaw) clues = JSON.parse(cluesRaw); } catch(e) {}
+  socket.emit('state_update', { players, currentRound, winnerId, clues });
 
   socket.on('register', (data) => {
     const { id, name } = data;
@@ -116,11 +123,8 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Admin endpoints (could also be socket events, but REST is fine for actions)
-app.post('/api/admin/start-round1', async (req, res) => {
-  let players = await getAllPlayers();
-  
-  // Separate pre-assigned traitors and innocents
+// Helper to group and assign roles for Round 1 / The Relic Trial
+const formRound1GroupsAndRoles = (players) => {
   const preTraitors = players.filter(p => p.role === 'Traitor').sort(() => Math.random() - 0.5);
   const innocents = players.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
 
@@ -142,34 +146,94 @@ app.post('/api/admin/start-round1', async (req, res) => {
   // Shuffle within each group so positions are natural
   groups.forEach(g => g.sort(() => Math.random() - 0.5));
 
+  const updates = [];
+  groups.forEach((group, groupIdx) => {
+    let numTraitors = 3;
+    if (group.length < 10) numTraitors = Math.max(1, Math.round(group.length * 0.3));
+
+    const existingTraitors = group.filter(p => p.role === 'Traitor');
+    let neededTraitors = Math.max(0, numTraitors - existingTraitors.length);
+    const innocentCandidates = group.filter(p => p.role !== 'Traitor');
+    const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
+
+    group.forEach((player) => {
+      let finalRole = 'Innocent';
+      if (player.role === 'Traitor' || newlySelectedTraitors.has(player.id)) {
+        finalRole = 'Traitor';
+      }
+      updates.push({ id: player.id, role: finalRole, group: groupIdx + 1 });
+    });
+  });
+
+  return updates;
+};
+
+// Admin endpoint: Start The Relic Trial (forms groups of 10 & assigns roles in system secretly)
+app.post('/api/admin/start-trial', async (req, res) => {
+  let players = await getAllPlayers();
+  const alivePlayers = players.filter(p => p.status === 'Alive');
+  const updates = formRound1GroupsAndRoles(alivePlayers);
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
-    groups.forEach((group, groupIdx) => {
-      let numTraitors = 3;
-      if (group.length < 10) numTraitors = Math.max(1, Math.round(group.length * 0.3));
-
-      // Any player already set to 'Traitor' by admin REMAINS Traitor
-      const existingTraitors = group.filter(p => p.role === 'Traitor');
-      let neededTraitors = Math.max(0, numTraitors - existingTraitors.length);
-      const innocentCandidates = group.filter(p => p.role !== 'Traitor');
-      const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
-
-      group.forEach((player) => {
-        let finalRole = 'Innocent';
-        if (player.role === 'Traitor' || newlySelectedTraitors.has(player.id)) {
-          finalRole = 'Traitor';
-        }
-        db.run(`UPDATE players SET role = ?, round1_group = ? WHERE id = ?`, 
-          [finalRole, groupIdx + 1, player.id]);
-      });
+    updates.forEach(u => {
+      db.run(`UPDATE players SET role = ?, round1_group = ? WHERE id = ?`, [u.role, u.group, u.id]);
     });
-    db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
+    db.run(`UPDATE config SET value = 'trial' WHERE key = 'current_round'`);
     db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
     db.run('COMMIT', () => {
       broadcastState();
-      res.json({ success: true });
+      res.json({ success: true, count: updates.length });
     });
   });
+});
+
+// Admin endpoint: Start Round 1 (Reveals roles; preserves the exact same groups from the trial)
+app.post('/api/admin/start-round1', async (req, res) => {
+  let players = await getAllPlayers();
+  const alivePlayers = players.filter(p => p.status === 'Alive');
+  
+  // If groups and roles were already assigned from The Relic Trial, keep them!
+  const alreadyGrouped = alivePlayers.length > 0 && alivePlayers.every(p => p.round1_group && p.round1_group > 0);
+
+  if (alreadyGrouped) {
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
+      db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
+      db.run('COMMIT', () => {
+        broadcastState();
+        res.json({ success: true, message: 'Advanced to Round 1 with existing groups' });
+      });
+    });
+  } else {
+    // Fallback if trial was skipped
+    const updates = formRound1GroupsAndRoles(alivePlayers);
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      updates.forEach(u => {
+        db.run(`UPDATE players SET role = ?, round1_group = ? WHERE id = ?`, [u.role, u.group, u.id]);
+      });
+      db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
+      db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
+      db.run('COMMIT', () => {
+        broadcastState();
+        res.json({ success: true });
+      });
+    });
+  }
+});
+
+// Admin endpoint: Update clue for a group
+app.post('/api/admin/set-clue', async (req, res) => {
+  const { group, clue } = req.body;
+  const currentCluesRaw = await getConfig('group_clues');
+  let clues = {};
+  try { if (currentCluesRaw) clues = JSON.parse(currentCluesRaw); } catch(e) {}
+  clues[group] = clue;
+  await setConfig('group_clues', JSON.stringify(clues));
+  broadcastState();
+  res.json({ success: true, clues });
 });
 
 app.post('/api/admin/start-round2', async (req, res) => {

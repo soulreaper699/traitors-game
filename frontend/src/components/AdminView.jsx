@@ -64,11 +64,31 @@ export default function AdminView({ gameState }) {
     }
   };
 
+  const handleSaveClue = async (group, text) => {
+    try {
+      await fetch(`${API_URL}/api/admin/set-clue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group, clue: text })
+      });
+    } catch (err) {
+      alert('Failed to save clue: ' + err.message);
+    }
+  };
+
+  const defaultClues = {
+    1: "Where shadows gather near the highest wall, search beneath the cold stone to unearth your relic piece.",
+    2: "Follow the silent corridor toward the mirrored hall. Look where stillness meets forgotten wood.",
+    3: "In the chamber of silent tomes, seek beneath the lowermost shelf to recover your squad's crest.",
+    4: "Near the threshold where dusk breaks, examine the base of the sentinel pillar.",
+    5: "Where two secret pathways converge, the relic shard rests hidden in plain sight."
+  };
+
   // Group players for display based on current round
   let displayGroups = {};
   alivePlayers.forEach(p => {
     let g = '?';
-    if (currentRound === '1') g = p.round1_group || '?';
+    if (currentRound === 'trial' || currentRound === '1') g = p.round1_group || '?';
     else if (currentRound === '2') g = p.round2_group || '?';
     else if (currentRound === '3') g = p.round3_group || '?';
     else if (currentRound === '4') g = p.round4_group || '?';
@@ -76,6 +96,12 @@ export default function AdminView({ gameState }) {
     if (!displayGroups[g]) displayGroups[g] = [];
     displayGroups[g].push(p);
   });
+
+  const getRoundTitle = (rnd) => {
+    if (rnd === '0') return 'Lobby / Waiting Room';
+    if (rnd === 'trial') return 'The Relic Trial (Prelude)';
+    return `Round ${rnd}`;
+  };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -118,16 +144,32 @@ export default function AdminView({ gameState }) {
       </div>
 
       <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-        <h2 style={{ marginBottom: '1rem' }}>Game Controls (Current Round: {currentRound})</h2>
+        <h2 style={{ marginBottom: '1rem' }}>Game Controls (Current State: {getRoundTitle(currentRound)})</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round1')}>
-            Start Round 1 (Groups of 10)
+          <button
+            className="btn btn-primary"
+            style={{
+              background: currentRound === 'trial' ? 'var(--accent-gold)' : 'linear-gradient(135deg, #4a0000, #1a0000)',
+              color: currentRound === 'trial' ? '#000' : 'var(--fg)',
+              borderColor: 'var(--accent-gold)'
+            }}
+            disabled={loading}
+            onClick={() => handleAction('start-trial')}
+          >
+            📜 Start The Relic Trial (Form Groups of 10 & Secretly Assign Roles)
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={loading}
+            onClick={() => handleAction('start-round1')}
+          >
+            👁 Start Round 1 (Reveal Roles to Players; Same Groups Continue)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round2')}>
             Start Round 2 (Groups of 15)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round3')}>
-            Start Round 3
+            Start Round 3 (Trust or Betray Pairs)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round4')}>
             Start Round 4 (Final 15)
@@ -139,9 +181,33 @@ export default function AdminView({ gameState }) {
       <div className="admin-grid">
         {Object.keys(displayGroups).sort((a,b) => a.localeCompare(b)).map(group => (
           <div key={group} className="glass-panel">
-            <h3 style={{ marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)' }}>
+            <h3 style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)' }}>
               {group === '?' ? (currentRound === '0' ? 'Lobby / Waiting' : 'Unassigned') : `Group ${group}`} ({displayGroups[group].length} Players)
             </h3>
+
+            {group !== '?' && (
+              <div style={{ margin: '0.5rem 0 1rem 0', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', border: '1px solid rgba(197, 160, 89, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent-gold)' }}>
+                    📜 Group {group} Clue
+                  </span>
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                    onClick={() => {
+                      const cur = (gameState.clues && gameState.clues[group]) || defaultClues[group] || '';
+                      const newClue = prompt(`Enter clue for Group ${group}:`, cur);
+                      if (newClue !== null) handleSaveClue(group, newClue);
+                    }}
+                  >
+                    Edit Clue
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  "{(gameState.clues && gameState.clues[group]) || defaultClues[group] || 'Search and retrieve your relic piece.'}"
+                </div>
+              </div>
+            )}
             <div className="player-list stagger-enter">
               {displayGroups[group].map(p => (
                 <div key={p.id} className="player-item">

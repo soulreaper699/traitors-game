@@ -27,14 +27,17 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
   }, [playerId]);
 
   // ADDON 16: Round transition flash
-  const round = parseInt(gameState.currentRound || '0', 10);
+  const currentRoundRaw = gameState.currentRound || '0';
+  const isTrial = currentRoundRaw === 'trial';
+  const round = isTrial ? 'trial' : parseInt(currentRoundRaw, 10);
+
   useEffect(() => {
-    if (prevRound !== null && prevRound !== round) {
+    if (prevRound !== null && prevRound !== currentRoundRaw) {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 600);
     }
-    setPrevRound(round);
-  }, [round]);
+    setPrevRound(currentRoundRaw);
+  }, [currentRoundRaw]);
 
   // ADDON 13: Victory sparkle styles (generated once)
   const sparkleStyles = useMemo(() => {
@@ -81,7 +84,7 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
   }
 
   // ====== WAITING ROOM (ADDON 18: premium spinner) ======
-  if (round === 0) {
+  if (currentRoundRaw === '0') {
     return (
       <div className="center-content animate-fade-in">
         {showFlash && <div className="round-flash"></div>}
@@ -140,19 +143,29 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
 
   let currentGroup = null;
   let groupMembers = [];
-  if (round === 1) {
+  if (isTrial || currentRoundRaw === '1') {
     currentGroup = myPlayer.round1_group;
     groupMembers = gameState.players.filter(p => p.round1_group === currentGroup && p.status === 'Alive');
-  } else if (round === 2) {
+  } else if (currentRoundRaw === '2') {
     currentGroup = myPlayer.round2_group;
     groupMembers = gameState.players.filter(p => p.round2_group === currentGroup && p.status === 'Alive');
-  } else if (round === 3) {
+  } else if (currentRoundRaw === '3') {
     currentGroup = myPlayer.round3_group;
     groupMembers = gameState.players.filter(p => p.round3_group === currentGroup && p.status === 'Alive');
-  } else if (round === 4) {
+  } else if (currentRoundRaw === '4') {
     currentGroup = myPlayer.round4_group;
     groupMembers = gameState.players.filter(p => p.round4_group === currentGroup && p.status === 'Alive');
   }
+
+  // Default atmospheric clues for The Relic Trial
+  const defaultClues = {
+    1: "Where shadows gather near the highest wall, search beneath the cold stone to unearth your relic piece.",
+    2: "Follow the silent corridor toward the mirrored hall. Look where stillness meets forgotten wood.",
+    3: "In the chamber of silent tomes, seek beneath the lowermost shelf to recover your squad's crest.",
+    4: "Near the threshold where dusk breaks, examine the base of the sentinel pillar.",
+    5: "Where two secret pathways converge, the relic shard rests hidden in plain sight."
+  };
+  const activeClue = (gameState.clues && gameState.clues[currentGroup]) || defaultClues[currentGroup] || "Search the estate grounds diligently, find your missing piece, and return to the council chamber.";
 
   // ====== ACTIVE GAMEPLAY ======
   return (
@@ -163,11 +176,13 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
       {/* ADDON 25: Live indicator */}
       <div className="live-indicator">
         <span className="live-dot"></span>
-        LIVE — Round {round}
+        {isTrial ? 'LIVE — The Relic Trial' : `LIVE — Round ${round}`}
       </div>
 
       {/* ADDON 26: Gradient round header */}
-      <h2 className="round-header">Round {round}</h2>
+      <h2 className="round-header">
+        {isTrial ? 'The Relic Trial' : `Round ${round}`}
+      </h2>
       
       {isEliminated ? (
         // ADDON 12 + ADDON 20: Eliminated card with skull watermark and blood splatter
@@ -181,6 +196,42 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
         </div>
       ) : (
         <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', ...tiltStyle }}>
+          
+          {/* THE RELIC TRIAL BRIEFING & CLUE */}
+          {isTrial && (
+            <div style={{
+              marginBottom: '1.5rem',
+              padding: '1.25rem',
+              background: 'linear-gradient(135deg, rgba(30, 8, 8, 0.8), rgba(12, 3, 3, 0.95))',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '6px',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.6)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>📜</span>
+                <h3 style={{ fontFamily: 'Cinzel', fontSize: '1.1rem', letterSpacing: '1px', margin: 0 }}>
+                  Mission: Relic Piece Retrieval
+                </h3>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.4' }}>
+                Each squad must decipher their clue, find the missing relic piece, and return to the room before time expires.
+              </p>
+              <div style={{
+                padding: '1rem',
+                background: 'rgba(0, 0, 0, 0.55)',
+                borderLeft: '3px solid var(--accent-gold)',
+                borderRadius: '0 4px 4px 0'
+              }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--accent-gold)', marginBottom: '6px', fontWeight: 600 }}>
+                  Squad Clue (Group {currentGroup || '?'})
+                </div>
+                <div style={{ fontStyle: 'italic', color: 'var(--fg)', fontSize: '1.05rem', lineHeight: '1.4' }}>
+                  "{activeClue}"
+                </div>
+              </div>
+            </div>
+          )}
+
           {round === 3 && (
             <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(61, 90, 128, 0.2)' }}>
               <h2 style={{ color: 'var(--accent-blue)', marginBottom: '0.5rem', fontSize: '1.3rem' }}>
@@ -206,7 +257,7 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
           <hr className="animated-divider" />
           
           <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Your Group Members:</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Your Squad Members:</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
               {groupMembers.map(p => (
                 <span key={p.id} style={{
@@ -227,8 +278,33 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
             </div>
           </div>
 
-          {/* ADDON 19: Role card flip reveal + ADDON 15: breathing pulse */}
-          {!(round >= 3) && (
+          {/* THE RELIC TRIAL: Roles are shrouded and NOT revealed yet */}
+          {isTrial && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '1.25rem',
+              background: 'rgba(0, 0, 0, 0.45)',
+              border: '1px dashed rgba(197, 160, 89, 0.4)',
+              borderRadius: '6px',
+              textAlign: 'center'
+            }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent-gold)', marginBottom: '0.4rem' }}>
+                <Eye size={18} />
+                <span style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem', fontWeight: 600 }}>
+                  Roles Concealed
+                </span>
+              </div>
+              <p style={{ color: 'var(--fg)', fontSize: '0.95rem', margin: '4px 0' }}>
+                The Traitors have already been chosen in secret among you.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                Work together with your squad. All true identities will be unveiled in Round 1.
+              </p>
+            </div>
+          )}
+
+          {/* ROUND 1 & 2: Dramatic role card flip reveal */}
+          {!isTrial && !(round >= 3) && (
             <div className="role-card-flip">
               <div className="role-card-inner">
                 <p style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem' }}>Your Secret Role</p>
@@ -242,10 +318,10 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
             </div>
           )}
 
-          {myPlayer.role === 'Traitor' && round === 1 && (
+          {!isTrial && myPlayer.role === 'Traitor' && round === 1 && (
              <p style={{ marginTop: '1.5rem', color: 'var(--accent-red)', fontWeight: 'bold', animation: 'traitorPulse 3s infinite' }}>⚔ You have 2 votes this round. Murder with caution.</p>
           )}
-          {myPlayer.role === 'Traitor' && round === 2 && (
+          {!isTrial && myPlayer.role === 'Traitor' && round === 2 && (
              <p style={{ marginTop: '1.5rem', color: 'var(--accent-red)', fontWeight: 'bold', animation: 'traitorPulse 3s infinite' }}>🗡 You have 1 vote to banish. Choose wisely.</p>
           )}
         </div>
