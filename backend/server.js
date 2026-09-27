@@ -119,26 +119,48 @@ io.on('connection', async (socket) => {
 // Admin endpoints (could also be socket events, but REST is fine for actions)
 app.post('/api/admin/start-round1', async (req, res) => {
   let players = await getAllPlayers();
-  players = players.sort(() => Math.random() - 0.5); // Shuffle
   
-  const groups = [];
-  const chunkSize = 10;
-  for (let i = 0; i < players.length; i += chunkSize) {
-    groups.push(players.slice(i, i + chunkSize));
-  }
+  // Separate pre-assigned traitors and innocents
+  const preTraitors = players.filter(p => p.role === 'Traitor').sort(() => Math.random() - 0.5);
+  const innocents = players.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
 
-  // Assign roles within each group (3 Traitors, 7 Innocents roughly)
+  const chunkSize = 10;
+  const numGroups = Math.max(1, Math.ceil(players.length / chunkSize));
+  const groups = Array.from({ length: numGroups }, () => []);
+
+  // Distribute pre-assigned traitors evenly across groups
+  preTraitors.forEach((traitor, idx) => {
+    groups[idx % numGroups].push(traitor);
+  });
+
+  // Distribute remaining players across groups until full
+  innocents.forEach((player) => {
+    const smallestGroup = groups.reduce((min, g) => g.length < min.length ? g : min, groups[0]);
+    smallestGroup.push(player);
+  });
+
+  // Shuffle within each group so positions are natural
+  groups.forEach(g => g.sort(() => Math.random() - 0.5));
+
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     groups.forEach((group, groupIdx) => {
-      // Calculate how many traitors this group should have
       let numTraitors = 3;
-      if (group.length < 10) numTraitors = Math.round(group.length * 0.3);
-      
-      group.forEach((player, playerIdx) => {
-        const role = playerIdx < numTraitors ? 'Traitor' : 'Innocent';
+      if (group.length < 10) numTraitors = Math.max(1, Math.round(group.length * 0.3));
+
+      // Any player already set to 'Traitor' by admin REMAINS Traitor
+      const existingTraitors = group.filter(p => p.role === 'Traitor');
+      let neededTraitors = Math.max(0, numTraitors - existingTraitors.length);
+      const innocentCandidates = group.filter(p => p.role !== 'Traitor');
+      const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
+
+      group.forEach((player) => {
+        let finalRole = 'Innocent';
+        if (player.role === 'Traitor' || newlySelectedTraitors.has(player.id)) {
+          finalRole = 'Traitor';
+        }
         db.run(`UPDATE players SET role = ?, round1_group = ? WHERE id = ?`, 
-          [role, groupIdx + 1, player.id]);
+          [finalRole, groupIdx + 1, player.id]);
       });
     });
     db.run(`UPDATE config SET value = '1' WHERE key = 'current_round'`);
@@ -154,26 +176,43 @@ app.post('/api/admin/start-round2', async (req, res) => {
   let players = await getAllPlayers();
   const alivePlayers = players.filter(p => p.status === 'Alive');
   
-  // Total Re-roll for Round 2
-  const shuffledPlayers = alivePlayers.sort(() => Math.random() - 0.5);
-  
+  // Separate existing traitors and innocents
+  const existingTraitors = alivePlayers.filter(p => p.role === 'Traitor').sort(() => Math.random() - 0.5);
+  const innocents = alivePlayers.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
+
   const chunkSize = 15;
-  const groups = [];
-  
-  for (let i = 0; i < shuffledPlayers.length; i += chunkSize) {
-    groups.push(shuffledPlayers.slice(i, i + chunkSize));
-  }
+  const numGroups = Math.max(1, Math.ceil(alivePlayers.length / chunkSize));
+  const groups = Array.from({ length: numGroups }, () => []);
+
+  // Distribute existing traitors across groups
+  existingTraitors.forEach((traitor, idx) => {
+    groups[idx % numGroups].push(traitor);
+  });
+
+  // Distribute remaining alive innocents
+  innocents.forEach((player) => {
+    const smallestGroup = groups.reduce((min, g) => g.length < min.length ? g : min, groups[0]);
+    smallestGroup.push(player);
+  });
+
+  groups.forEach(g => g.sort(() => Math.random() - 0.5));
 
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     groups.forEach((group, groupIdx) => {
-      // 3 Traitors for 10 people = 30%. For 15 people = 4.5. Let's round.
-      let numTraitors = Math.round(group.length * 0.3);
-      
-      group.forEach((player, playerIdx) => {
-        const role = playerIdx < numTraitors ? 'Traitor' : 'Innocent';
+      let numTraitors = Math.max(1, Math.round(group.length * 0.3));
+      const groupTraitors = group.filter(p => p.role === 'Traitor');
+      let neededTraitors = Math.max(0, numTraitors - groupTraitors.length);
+      const innocentCandidates = group.filter(p => p.role !== 'Traitor');
+      const newlySelectedTraitors = new Set(innocentCandidates.slice(0, neededTraitors).map(p => p.id));
+
+      group.forEach((player) => {
+        let finalRole = 'Innocent';
+        if (player.role === 'Traitor' || newlySelectedTraitors.has(player.id)) {
+          finalRole = 'Traitor';
+        }
         db.run(`UPDATE players SET role = ?, round2_group = ? WHERE id = ?`, 
-          [role, groupIdx + 1, player.id]);
+          [finalRole, groupIdx + 1, player.id]);
       });
     });
     db.run(`UPDATE config SET value = '2' WHERE key = 'current_round'`);
