@@ -69,7 +69,7 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
             <input 
               type="text" 
               className="input-field" 
-              placeholder="Enter your name" 
+              placeholder="Enter your player number" 
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
