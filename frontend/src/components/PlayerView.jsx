@@ -303,8 +303,8 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
             </div>
           )}
 
-          {/* ROUND 1 & 2: Dramatic role card flip reveal */}
-          {!isTrial && !(round >= 3) && (
+          {/* ROUND 1 & 2 ONLY: Dramatic role card flip reveal */}
+          {(currentRoundRaw === '1' || currentRoundRaw === '2') && (
             <div className="role-card-flip">
               <div className="role-card-inner">
                 <p style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem' }}>Your Secret Role</p>
