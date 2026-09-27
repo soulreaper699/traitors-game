@@ -4,7 +4,7 @@
   "description": "Root package for full-stack deployment on Render",
   "scripts": {
     "install:all": "npm run install:backend && npm run install:frontend",
-    "install:backend": "cd backend && npm install",
+    "install:backend": "cd backend && npm install --build-from-source=sqlite3",
     "install:frontend": "cd frontend && npm install",
     "build": "cd frontend && npm run build",
     "start": "cd backend && npm start"
@@ -13,5 +13,8 @@
     "lucide-react": "^1.47.0",
     "react-router-dom": "^7.18.4",
     "socket.io-client": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
