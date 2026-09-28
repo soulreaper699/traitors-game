@@ -241,9 +241,9 @@ const formRound1GroupsAndRoles = (players) => {
 };
 
 // ==========================================
-// ADMIN SECURITY AUTHENTICATION (PIN: 7788)
+// ADMIN SECURITY AUTHENTICATION (PASSCODE: 777@)
 // ==========================================
-const ADMIN_PIN = process.env.ADMIN_PIN || '7788';
+const ADMIN_PIN = process.env.ADMIN_PIN || '777@';
 
 app.post('/api/verify-admin-pin', (req, res) => {
   const { pin } = req.body;

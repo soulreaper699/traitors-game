@@ -211,14 +211,13 @@ export default function AdminView({ gameState }) {
               <Lock size={28} color="var(--accent-gold)" />
             </div>
             <h2 style={{ fontSize: '1.25rem', marginBottom: '0.35rem' }}>Master Security Passcode</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Enter the master PIN to unlock controls</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Enter the master passcode to unlock controls</p>
           </div>
 
           <form onSubmit={handleUnlock} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <input
               type="password"
-              inputMode="numeric"
-              maxLength={8}
+              maxLength={16}
               autoFocus
               className="input-field"
               placeholder="••••"
