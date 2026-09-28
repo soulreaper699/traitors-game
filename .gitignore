@@ -3,3 +3,4 @@ dist/
 .env
 traitors.db
 .DS_Store
+load_test_*.js
