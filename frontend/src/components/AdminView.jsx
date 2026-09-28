@@ -175,7 +175,7 @@ export default function AdminView({ gameState }) {
   let displayGroups = {};
   alivePlayers.forEach(p => {
     let g = '?';
-    if (currentRound === 'trial' || currentRound === '1') g = p.round1_group || '?';
+    if (currentRound === '0' || currentRound === 'trial' || currentRound === '1') g = p.round1_group || '?';
     else if (currentRound === '2') g = p.round2_group || '?';
     else if (currentRound === '3') g = p.round3_group || '?';
     else if (currentRound === '4') g = p.round4_group || '?';
@@ -183,6 +183,13 @@ export default function AdminView({ gameState }) {
     if (!displayGroups[g]) displayGroups[g] = [];
     displayGroups[g].push(p);
   });
+
+  const maxGroupNumber = Math.max(
+    10,
+    ...alivePlayers.map(p => Number(getPlayerGroup(p)) || 0),
+    Math.ceil(alivePlayers.length / 10)
+  );
+  const groupOptions = Array.from({ length: Math.min(50, maxGroupNumber) }, (_, i) => i + 1);
 
   const getRoundTitle = (rnd) => {
     if (rnd === '0') return 'Lobby / Waiting Room';
@@ -341,7 +348,13 @@ export default function AdminView({ gameState }) {
 
       <h2 style={{ marginBottom: '1rem' }}>Alive Players by Group</h2>
       <div className="admin-grid">
-        {Object.keys(displayGroups).sort((a,b) => a.localeCompare(b)).map(group => (
+        {Object.keys(displayGroups)
+          .sort((a, b) => {
+            if (a === '?') return 1;
+            if (b === '?') return -1;
+            return Number(a) - Number(b);
+          })
+          .map(group => (
           <div key={group} className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--panel-border)', flexWrap: 'wrap', gap: '6px' }}>
               <h3 style={{ margin: 0 }}>
@@ -414,12 +427,9 @@ export default function AdminView({ gameState }) {
                         }}
                       >
                         <option value="">Unassigned</option>
-                        <option value="1">Group 1</option>
-                        <option value="2">Group 2</option>
-                        <option value="3">Group 3</option>
-                        <option value="4">Group 4</option>
-                        <option value="5">Group 5</option>
-                        <option value="6">Group 6</option>
+                        {groupOptions.map(num => (
+                          <option key={num} value={num}>Group {num}</option>
+                        ))}
                         <option value="custom">+ Custom #...</option>
                       </select>
                     </div>

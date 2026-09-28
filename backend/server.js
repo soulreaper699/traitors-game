@@ -514,17 +514,9 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
       shuffled.forEach((p) => {
-        let targetGroup = null;
-        const existingGroups = Object.keys(groupCounts).map(Number).sort((a,b) => a - b);
-        for (const g of existingGroups) {
-          if (groupCounts[g] < designedSize) {
-            targetGroup = g;
-            break;
-          }
-        }
-        if (!targetGroup) {
-          const maxGroup = existingGroups.length > 0 ? Math.max(...existingGroups) : 0;
-          targetGroup = maxGroup + 1;
+        let targetGroup = 1;
+        while ((groupCounts[targetGroup] || 0) >= designedSize) {
+          targetGroup++;
         }
         groupCounts[targetGroup] = (groupCounts[targetGroup] || 0) + 1;
         p[col] = targetGroup;
