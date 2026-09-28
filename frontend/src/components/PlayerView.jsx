@@ -54,8 +54,17 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
       const pid = localStorage.getItem('traitor_player_id');
       if (pid) socket.emit('identify', { id: pid });
     };
+    const handleRemoved = () => {
+      try { localStorage.removeItem('traitor_player_id'); } catch(e) {}
+      setPlayerId(null);
+      setName('');
+    };
     socket.on('connect', handleConnect);
-    return () => socket.off('connect', handleConnect);
+    socket.on('player_removed', handleRemoved);
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('player_removed', handleRemoved);
+    };
   }, [socket]);
 
   // ADDON 16: Round transition flash

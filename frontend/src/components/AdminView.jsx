@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown, Lock, LogOut } from 'lucide-react';
+import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown, Lock, LogOut, UserMinus, Trash2 } from 'lucide-react';
 
 // Use relative path for production deployment where frontend is served by backend
 const API_URL = import.meta.env.PROD ? '' : `http://${window.location.hostname}:3001`;
@@ -135,6 +135,60 @@ export default function AdminView({ gameState, socket }) {
       });
     } catch (err) {
       alert('Role change failed: ' + err.message);
+    }
+  };
+
+  const [selectedPlayerToRemove, setSelectedPlayerToRemove] = useState('');
+  const [manualPlayerNumToRemove, setManualPlayerNumToRemove] = useState('');
+
+  const sortedPlayers = [...players].sort((a, b) => (Number(a.name) || 0) - (Number(b.name) || 0));
+
+  const handleRemovePlayer = async (id, playerName) => {
+    if (!window.confirm(`Permanently delete Player #${playerName} from the game?\n\nThis deletes their record from the database, updates all squad counts, and resets their screen.`)) {
+      return;
+    }
+    try {
+      await adminFetch('remove-player', {
+        method: 'POST',
+        body: JSON.stringify({ id })
+      });
+      if (selectedPlayerToRemove === id) setSelectedPlayerToRemove('');
+    } catch (err) {
+      alert('Failed to remove player: ' + err.message);
+    }
+  };
+
+  const handleQuickRemovePlayer = async () => {
+    let targetId = selectedPlayerToRemove;
+    let targetName = '';
+
+    if (manualPlayerNumToRemove.trim()) {
+      const match = players.find(p => String(p.name).trim() === manualPlayerNumToRemove.trim());
+      if (!match) {
+        return alert(`Player #${manualPlayerNumToRemove} was not found in the game.`);
+      }
+      targetId = match.id;
+      targetName = match.name;
+    } else if (targetId) {
+      const match = players.find(p => p.id === targetId);
+      targetName = match ? match.name : targetId;
+    }
+
+    if (!targetId) return;
+
+    if (!window.confirm(`Permanently delete Player #${targetName} from the game?\n\nThis deletes their record from the database, updates all squad counts, and resets their screen.`)) {
+      return;
+    }
+
+    try {
+      await adminFetch('remove-player', {
+        method: 'POST',
+        body: JSON.stringify({ id: targetId })
+      });
+      setSelectedPlayerToRemove('');
+      setManualPlayerNumToRemove('');
+    } catch (err) {
+      alert('Failed to remove player: ' + err.message);
     }
   };
 
@@ -349,6 +403,78 @@ export default function AdminView({ gameState, socket }) {
         </div>
       )}
 
+      {/* SECTION: MANAGE & REMOVE PLAYERS */}
+      <div className="glass-panel" style={{ marginBottom: '2rem', border: '1px solid rgba(158, 27, 27, 0.4)', background: 'linear-gradient(135deg, rgba(20, 5, 5, 0.8), rgba(10, 2, 2, 0.95))' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#ff6b6b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <UserMinus size={22} color="#ff6b6b" /> Remove Player from Game
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+              Permanently delete an accidental or duplicate registration. This updates squad counts immediately and resets that player's screen back to registration.
+            </p>
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            {players.length} Total Registered
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            value={selectedPlayerToRemove}
+            onChange={(e) => {
+              setSelectedPlayerToRemove(e.target.value);
+              setManualPlayerNumToRemove('');
+            }}
+            style={{
+              flex: '1 1 240px',
+              padding: '8px 12px',
+              background: 'rgba(0,0,0,0.7)',
+              color: 'var(--fg)',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '4px',
+              fontSize: '0.9rem'
+            }}
+          >
+            <option value="">-- Select Player by Number --</option>
+            {sortedPlayers.map(p => (
+              <option key={p.id} value={p.id}>
+                Player #{p.name} ({p.status} - {p.role === 'Traitor' ? 'Traitor' : 'Innocent'}{getPlayerGroup(p) ? ` - Group ${getPlayerGroup(p)}` : ''})
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="Or type Player #"
+            value={manualPlayerNumToRemove}
+            onChange={(e) => {
+              setManualPlayerNumToRemove(e.target.value.replace(/\D/g, ''));
+              setSelectedPlayerToRemove('');
+            }}
+            style={{
+              width: '160px',
+              padding: '8px 12px',
+              background: 'rgba(0,0,0,0.7)',
+              color: 'var(--fg)',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '4px',
+              fontSize: '0.9rem'
+            }}
+          />
+
+          <button
+            className="btn btn-danger"
+            style={{ padding: '8px 18px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            disabled={!selectedPlayerToRemove && !manualPlayerNumToRemove.trim()}
+            onClick={handleQuickRemovePlayer}
+          >
+            <Trash2 size={16} /> Delete Player
+          </button>
+        </div>
+      </div>
+
       <h2 style={{ marginBottom: '1rem' }}>Alive Players by Group</h2>
       <div className="admin-grid">
         {Object.keys(displayGroups)
@@ -434,6 +560,14 @@ export default function AdminView({ gameState, socket }) {
                     <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => handleEliminate(p.id)}>
                       Eliminate
                     </button>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '6px 10px', fontSize: '0.8rem', color: '#ff6b6b', borderColor: 'rgba(255, 107, 107, 0.4)' }}
+                      title="Permanently remove player from game"
+                      onClick={() => handleRemovePlayer(p.id, p.name)}
+                    >
+                      <Trash2 size={14} style={{ verticalAlign: 'middle' }} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -464,6 +598,14 @@ export default function AdminView({ gameState, socket }) {
                       onClick={() => handleToggleRole(p.id, p.role)}
                     >
                       Change to {p.role === 'Traitor' ? 'Innocent' : 'Traitor'}
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '6px 10px', fontSize: '0.75rem', color: '#ff6b6b', borderColor: 'rgba(255, 107, 107, 0.4)' }}
+                      title="Permanently remove player from game"
+                      onClick={() => handleRemovePlayer(p.id, p.name)}
+                    >
+                      <Trash2 size={13} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Remove
                     </button>
                   </div>
                 </div>

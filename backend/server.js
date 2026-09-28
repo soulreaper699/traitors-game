@@ -496,6 +496,47 @@ app.post('/api/admin/eliminate', (req, res) => {
   });
 });
 
+// Admin endpoint: Permanently remove a player from the game
+app.post('/api/admin/remove-player', (req, res) => {
+  let { id, playerNumber } = req.body;
+  
+  if (!id && playerNumber) {
+    const match = stateCache.players.find(p => p.name === String(playerNumber).trim());
+    if (match) id = match.id;
+  }
+
+  if (!id) {
+    return res.status(400).json({ error: 'Player ID or valid number is required' });
+  }
+
+  const removedPlayer = stateCache.players.find(pl => pl.id === id);
+  stateCache.players = stateCache.players.filter(pl => pl.id !== id);
+
+  if (stateCache.winnerId === id) {
+    stateCache.winnerId = '';
+    db.run(`UPDATE config SET value = '' WHERE key = 'winner_id'`);
+  }
+
+  // Notify any connected socket belonging to this player that they were removed
+  for (const [_, s] of io.sockets.sockets) {
+    if (s.playerId === id) {
+      s.playerId = null;
+      s.emit('player_removed');
+      s.emit('state_update', getSanitizedState(null));
+    }
+  }
+
+  broadcastState(true);
+
+  db.run(`DELETE FROM players WHERE id = ?`, [id], (err) => {
+    if (err) {
+      console.error('Delete player error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true, removed: removedPlayer });
+  });
+});
+
 app.post('/api/admin/set-role', (req, res) => {
   const { id, role } = req.body;
   if (!['Traitor', 'Innocent'].includes(role)) {
