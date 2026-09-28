@@ -232,7 +232,8 @@ io.on('connection', (socket) => {
 // Helper to group and assign roles for Round 1 / The Relic Trial
 // Strict Logic: FIRST fill Group 1 up to 10 players, THEN move to Group 2, etc.
 const formRound1GroupsAndRoles = (players) => {
-  const chunkSize = 10;
+  // Balanced for 64 players: exactly 8 groups of 8 players (or 10 for 100+ players)
+  const chunkSize = players.length <= 80 ? 8 : 10;
   
   // Check if all players already have round1_group assigned
   const allAssigned = players.length > 0 && players.every(p => p.round1_group && p.round1_group > 0);
@@ -254,7 +255,7 @@ const formRound1GroupsAndRoles = (players) => {
       }
     });
 
-    // Unassigned players: fill Group 1 to 10 FIRST, then Group 2 to 10, etc.
+    // Unassigned players: fill sequentially up to chunkSize
     const unassigned = players.filter(p => !p.round1_group || p.round1_group <= 0).sort(() => Math.random() - 0.5);
     unassigned.forEach(p => {
       let targetG = 1;
@@ -272,9 +273,10 @@ const formRound1GroupsAndRoles = (players) => {
   
   groupKeys.forEach(gNum => {
     const group = groupMap[gNum];
-    let numTraitors = 3;
+    // Ratio: 2 Traitors per group of 8 (25% = 16 Traitors total), or 3 per group of 10
+    let numTraitors = chunkSize === 8 ? 2 : 3;
     if (group.length < chunkSize) {
-      numTraitors = Math.max(1, Math.round(group.length * 0.3));
+      numTraitors = Math.max(1, Math.round(group.length * 0.28));
     }
 
     const existingTraitors = group.filter(p => p.role === 'Traitor');
@@ -384,7 +386,8 @@ app.post('/api/admin/set-clue', async (req, res) => {
 app.post('/api/admin/start-round2', async (req, res) => {
   let players = await getAllPlayers();
   const alivePlayers = players.filter(p => p.status === 'Alive');
-  const chunkSize = 15;
+  // For 64-player tournament (~32 survivors): 4 groups of 8 players!
+  const chunkSize = alivePlayers.length <= 48 ? 8 : 15;
 
   const allAssigned = alivePlayers.length > 0 && alivePlayers.every(p => p.round2_group && p.round2_group > 0);
   let groupMap = {};
@@ -419,7 +422,11 @@ app.post('/api/admin/start-round2', async (req, res) => {
     const groupKeys = Object.keys(groupMap).map(Number).sort((a,b) => a - b);
     groupKeys.forEach(gNum => {
       const group = groupMap[gNum];
-      let numTraitors = Math.max(1, Math.round(group.length * 0.3));
+      // Ratio: 2 Traitors per group of 8 (25%), or 30% for larger groups
+      let numTraitors = chunkSize === 8 ? 2 : Math.max(1, Math.round(group.length * 0.3));
+      if (group.length < chunkSize) {
+        numTraitors = Math.max(1, Math.round(group.length * 0.28));
+      }
       const groupTraitors = group.filter(p => p.role === 'Traitor');
       let neededTraitors = Math.max(0, numTraitors - groupTraitors.length);
       const innocentCandidates = group.filter(p => p.role !== 'Traitor').sort(() => Math.random() - 0.5);
@@ -580,13 +587,20 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
   const { onlyUnassigned = false } = req.body;
   const currentRound = stateCache.currentRound || '0';
   
-  let col = 'round1_group';
-  let designedSize = 10;
-  if (currentRound === '2') { col = 'round2_group'; designedSize = 15; }
-  else if (currentRound === '3') { col = 'round3_group'; designedSize = 2; }
-  else if (currentRound === '4') { col = 'round4_group'; designedSize = 15; }
-
   let alivePlayers = stateCache.players.filter(p => p.status === 'Alive');
+
+  let col = 'round1_group';
+  let designedSize = alivePlayers.length <= 80 ? 8 : 10;
+  if (currentRound === '2') {
+    col = 'round2_group';
+    designedSize = alivePlayers.length <= 48 ? 8 : 15;
+  } else if (currentRound === '3') {
+    col = 'round3_group';
+    designedSize = 2;
+  } else if (currentRound === '4') {
+    col = 'round4_group';
+    designedSize = alivePlayers.length;
+  }
   
   if (onlyUnassigned) {
     const unassigned = alivePlayers.filter(p => !p[col] || p[col] <= 0);

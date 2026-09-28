@@ -63,39 +63,52 @@ function App() {
   const currentMousePos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 
   useEffect(() => {
+    // Skip on touch/mobile devices to save battery & CPU for all players
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
+
     let animationFrameId;
+    let isMoving = false;
     const handleMouseMove = (e) => {
       targetMousePos.current = { x: e.clientX, y: e.clientY };
+      if (!isMoving) {
+        isMoving = true;
+        updatePhysics();
+      }
     };
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const updatePhysics = () => {
-      currentMousePos.current.x += (targetMousePos.current.x - currentMousePos.current.x) * 0.05;
-      currentMousePos.current.y += (targetMousePos.current.y - currentMousePos.current.y) * 0.05;
-      setMousePos({ x: currentMousePos.current.x, y: currentMousePos.current.y });
-      animationFrameId = requestAnimationFrame(updatePhysics);
+      const dx = targetMousePos.current.x - currentMousePos.current.x;
+      const dy = targetMousePos.current.y - currentMousePos.current.y;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        currentMousePos.current.x += dx * 0.08;
+        currentMousePos.current.y += dy * 0.08;
+        setMousePos({ x: currentMousePos.current.x, y: currentMousePos.current.y });
+        animationFrameId = requestAnimationFrame(updatePhysics);
+      } else {
+        isMoving = false;
+      }
     };
-    updatePhysics();
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
-  // ADDON 3: Blood drip styles (static, generated once)
+  // ADDON 3: Blood drip styles (static, lightweight)
   const dripStyles = useMemo(() => {
-    return [...Array(12)].map(() => ({
+    return [...Array(8)].map(() => ({
       left: `${Math.random() * 100}vw`,
-      height: `${Math.random() * 150 + 50}px`,
+      height: `${Math.random() * 120 + 40}px`,
       animationDuration: `${Math.random() * 15 + 15}s`,
       animationDelay: `-${Math.random() * 20}s`
     }));
   }, []);
 
-  // ADDON 8: Micro-particle styles (static, generated once)
+  // ADDON 8: Micro-particle styles (optimized for 64 simultaneous devices)
   const particleStyles = useMemo(() => {
-    return [...Array(40)].map(() => ({
+    return [...Array(15)].map(() => ({
       left: `${Math.random() * 100}vw`,
       top: `${Math.random() * 100}vh`,
       width: `${Math.random() * 2 + 1}px`,

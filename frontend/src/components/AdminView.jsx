@@ -362,7 +362,7 @@ export default function AdminView({ gameState, socket }) {
             disabled={loading}
             onClick={() => handleAction('start-trial')}
           >
-            📜 Start The Relic Trial (Form Groups of 10 & Secretly Assign Roles)
+            📜 Start The Relic Trial ({alivePlayers.length <= 80 ? '8 Groups of 8' : 'Groups of 10'} & Secretly Assign Roles)
           </button>
           <button
             className="btn btn-primary"
@@ -372,13 +372,13 @@ export default function AdminView({ gameState, socket }) {
             👁 Start Round 1 (Reveal Roles to Players; Same Groups Continue)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round2')}>
-            Start Round 2 (Groups of 15)
+            Start Round 2 ({alivePlayers.length <= 48 ? '4 Groups of 8' : 'Groups of 15'})
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round3')}>
-            Start Round 3 (Trust or Betray Pairs)
+            Start Round 3 (Trust or Betray Pairs of 2)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round4')}>
-            Start Round 4 (Final 15)
+            Start Round 4 (The Final Council / Showdown)
           </button>
         </div>
       </div>
