@@ -192,16 +192,6 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
     groupMembers = gameState.players.filter(p => p.round4_group === currentGroup && p.status === 'Alive');
   }
 
-  // Default atmospheric clues for The Relic Trial
-  const defaultClues = {
-    1: "Where shadows gather near the highest wall, search beneath the cold stone to unearth your relic piece.",
-    2: "Follow the silent corridor toward the mirrored hall. Look where stillness meets forgotten wood.",
-    3: "In the chamber of silent tomes, seek beneath the lowermost shelf to recover your squad's crest.",
-    4: "Near the threshold where dusk breaks, examine the base of the sentinel pillar.",
-    5: "Where two secret pathways converge, the relic shard rests hidden in plain sight."
-  };
-  const activeClue = (gameState.clues && gameState.clues[currentGroup]) || defaultClues[currentGroup] || "Search the estate grounds diligently, find your missing piece, and return to the council chamber.";
-
   // ====== ACTIVE GAMEPLAY ======
   return (
     <div className="center-content page-transition-enter">
@@ -232,7 +222,7 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
       ) : (
         <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', ...tiltStyle }}>
           
-          {/* THE RELIC TRIAL BRIEFING & CLUE */}
+          {/* THE RELIC TRIAL BRIEFING */}
           {isTrial && (
             <div style={{
               marginBottom: '1.5rem',
@@ -248,22 +238,9 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
                   Mission: Relic Piece Retrieval
                 </h3>
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.4' }}>
-                Each squad must decipher their clue, find the missing relic piece, and return to the room before time expires.
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                Work with your squad to locate your missing relic piece and return to the council chamber before time expires.
               </p>
-              <div style={{
-                padding: '1rem',
-                background: 'rgba(0, 0, 0, 0.55)',
-                borderLeft: '3px solid var(--accent-gold)',
-                borderRadius: '0 4px 4px 0'
-              }}>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--accent-gold)', marginBottom: '6px', fontWeight: 600 }}>
-                  Squad Clue (Group {currentGroup || '?'})
-                </div>
-                <div style={{ fontStyle: 'italic', color: 'var(--fg)', fontSize: '1.05rem', lineHeight: '1.4' }}>
-                  "{activeClue}"
-                </div>
-              </div>
             </div>
           )}
 

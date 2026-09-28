@@ -152,25 +152,6 @@ export default function AdminView({ gameState }) {
     return p.round1_group;
   };
 
-  const handleSaveClue = async (group, text) => {
-    try {
-      await adminFetch('set-clue', {
-        method: 'POST',
-        body: JSON.stringify({ group, clue: text })
-      });
-    } catch (err) {
-      alert('Failed to save clue: ' + err.message);
-    }
-  };
-
-  const defaultClues = {
-    1: "Where shadows gather near the highest wall, search beneath the cold stone to unearth your relic piece.",
-    2: "Follow the silent corridor toward the mirrored hall. Look where stillness meets forgotten wood.",
-    3: "In the chamber of silent tomes, seek beneath the lowermost shelf to recover your squad's crest.",
-    4: "Near the threshold where dusk breaks, examine the base of the sentinel pillar.",
-    5: "Where two secret pathways converge, the relic shard rests hidden in plain sight."
-  };
-
   // Group players for display based on current round
   let displayGroups = {};
   alivePlayers.forEach(p => {
@@ -371,29 +352,6 @@ export default function AdminView({ gameState }) {
               )}
             </div>
 
-            {group !== '?' && (
-              <div style={{ margin: '0.5rem 0 1rem 0', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', border: '1px solid rgba(197, 160, 89, 0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent-gold)' }}>
-                    📜 Group {group} Clue
-                  </span>
-                  <button
-                    className="btn btn-outline"
-                    style={{ padding: '2px 8px', fontSize: '0.7rem' }}
-                    onClick={() => {
-                      const cur = (gameState.clues && gameState.clues[group]) || defaultClues[group] || '';
-                      const newClue = prompt(`Enter clue for Group ${group}:`, cur);
-                      if (newClue !== null) handleSaveClue(group, newClue);
-                    }}
-                  >
-                    Edit Clue
-                  </button>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  "{(gameState.clues && gameState.clues[group]) || defaultClues[group] || 'Search and retrieve your relic piece.'}"
-                </div>
-              </div>
-            )}
             <div className="player-list stagger-enter">
               {displayGroups[group].map(p => (
                 <div key={p.id} className="player-item">
