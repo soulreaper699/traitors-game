@@ -43,8 +43,20 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
       try { localStorage.setItem('traitor_player_id', newId); }
       catch (e) { console.warn('localStorage blocked by Safari/iOS privacy'); }
       setPlayerId(newId);
+    } else if (socket) {
+      socket.emit('identify', { id: playerId });
     }
-  }, [playerId]);
+  }, [playerId, socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleConnect = () => {
+      const pid = localStorage.getItem('traitor_player_id');
+      if (pid) socket.emit('identify', { id: pid });
+    };
+    socket.on('connect', handleConnect);
+    return () => socket.off('connect', handleConnect);
+  }, [socket]);
 
   // ADDON 16: Round transition flash
   const currentRoundRaw = gameState.currentRound || '0';

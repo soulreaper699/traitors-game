@@ -4,7 +4,7 @@ import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown, Lock, LogOut 
 // Use relative path for production deployment where frontend is served by backend
 const API_URL = import.meta.env.PROD ? '' : `http://${window.location.hostname}:3001`;
 
-export default function AdminView({ gameState }) {
+export default function AdminView({ gameState, socket }) {
   const { players = [], currentRound = '0' } = gameState;
   const [loading, setLoading] = useState(false);
   const [savedPin, setSavedPin] = useState(() => sessionStorage.getItem('traitors_admin_pin') || '');
@@ -12,6 +12,26 @@ export default function AdminView({ gameState }) {
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [verifying, setVerifying] = useState(false);
+
+  // Authenticate socket as admin to receive full unmasked state
+  useEffect(() => {
+    const currentPin = sessionStorage.getItem('traitors_admin_pin') || savedPin;
+    if (currentPin && isAuthenticated && socket) {
+      socket.emit('admin_auth', { pin: currentPin });
+    }
+  }, [isAuthenticated, savedPin, socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleConnect = () => {
+      const pin = sessionStorage.getItem('traitors_admin_pin') || savedPin;
+      if (pin && isAuthenticated) {
+        socket.emit('admin_auth', { pin });
+      }
+    };
+    socket.on('connect', handleConnect);
+    return () => socket.off('connect', handleConnect);
+  }, [socket, isAuthenticated, savedPin]);
 
   const alivePlayers = players.filter(p => p.status === 'Alive');
   const eliminatedPlayers = players.filter(p => p.status === 'Eliminated');
@@ -34,6 +54,7 @@ export default function AdminView({ gameState }) {
         sessionStorage.setItem('traitors_admin_pin', enteredPin.trim());
         setSavedPin(enteredPin.trim());
         setIsAuthenticated(true);
+        if (socket) socket.emit('admin_auth', { pin: enteredPin.trim() });
       } else {
         setPinError('Incorrect Passcode. Access Denied.');
       }
@@ -44,6 +65,7 @@ export default function AdminView({ gameState }) {
   };
 
   const handleLock = () => {
+    if (socket) socket.emit('admin_deauth');
     sessionStorage.removeItem('traitors_admin_pin');
     setSavedPin('');
     setIsAuthenticated(false);

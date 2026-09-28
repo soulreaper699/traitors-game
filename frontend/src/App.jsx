@@ -24,6 +24,40 @@ function App() {
     return () => socket.off('state_update');
   }, []);
 
+  // Anti-Inspect / Anti-Cheat Keyboard & Context Menu Blocker
+  useEffect(() => {
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const handleKeyDown = (e) => {
+      // Block F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (Inspect / Console)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) {
+        e.preventDefault();
+        return false;
+      }
+      // Block Ctrl+U (View Source) & Ctrl+S (Save)
+      if ((e.ctrlKey || e.metaKey) && ['U', 'u', 'S', 's'].includes(e.key)) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Smooth Lerp for mouse tracking
   const targetMousePos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const currentMousePos = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -110,7 +144,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<PlayerView gameState={gameState} socket={socket} mousePos={mousePos} />} />
-          <Route path="/cloak-chamber-7788" element={<AdminView gameState={gameState} />} />
+          <Route path="/cloak-chamber-7788" element={<AdminView gameState={gameState} socket={socket} />} />
           <Route path="/secret-admin" element={<Navigate to="/" replace />} />
           <Route path="/admin" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

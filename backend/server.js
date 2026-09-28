@@ -114,10 +114,44 @@ const syncStateFromDB = async () => {
 // Initial sync from DB
 setTimeout(syncStateFromDB, 300);
 
+// ==========================================
+// ADMIN SECURITY AUTHENTICATION (PASSCODE: 777@)
+// ==========================================
+const ADMIN_PIN = process.env.ADMIN_PIN || '777@';
+
+// Sanitizes state so secret roles are never leaked over network packets
+const getSanitizedState = (targetPlayerId) => {
+  const currentRound = stateCache.currentRound || '0';
+  const isConcealedRound = currentRound === '0' || currentRound === 'trial';
+  
+  const sanitizedPlayers = (stateCache.players || []).map(p => {
+    // In Lobby (0) and The Relic Trial, all roles are concealed
+    if (isConcealedRound) {
+      return { ...p, role: 'Concealed' };
+    }
+    // In active rounds (1-4), each player only sees their own role; other roles are masked
+    if (targetPlayerId && p.id === targetPlayerId) {
+      return p;
+    }
+    return { ...p, role: 'Unknown' };
+  });
+
+  return {
+    ...stateCache,
+    players: sanitizedPlayers
+  };
+};
+
 let broadcastTimer = null;
 const broadcastState = (immediate = false) => {
   const emitUpdate = () => {
-    io.emit('state_update', stateCache);
+    for (const [_, s] of io.sockets.sockets) {
+      if (s.isAdmin) {
+        s.emit('state_update', stateCache);
+      } else {
+        s.emit('state_update', getSanitizedState(s.playerId));
+      }
+    }
     broadcastTimer = null;
   };
 
@@ -132,11 +166,31 @@ const broadcastState = (immediate = false) => {
 };
 
 io.on('connection', (socket) => {
-  // Instant response from memory (0 SQLite reads per connection!)
-  socket.emit('state_update', stateCache);
+  // Default to sanitized state on connect
+  socket.emit('state_update', getSanitizedState(socket.playerId));
+
+  socket.on('identify', (data) => {
+    if (data && data.id) {
+      socket.playerId = data.id;
+      socket.emit('state_update', socket.isAdmin ? stateCache : getSanitizedState(socket.playerId));
+    }
+  });
+
+  socket.on('admin_auth', (data) => {
+    if (data && String(data.pin).trim() === ADMIN_PIN) {
+      socket.isAdmin = true;
+      socket.emit('state_update', stateCache);
+    }
+  });
+
+  socket.on('admin_deauth', () => {
+    socket.isAdmin = false;
+    socket.emit('state_update', getSanitizedState(socket.playerId));
+  });
 
   socket.on('register', (data) => {
     const { id, name } = data;
+    socket.playerId = id;
     const cleanPlayerNumber = String(name || '').replace(/\D/g, '').trim();
     if (!cleanPlayerNumber) {
       return socket.emit('error', 'Player number must be digits only');
@@ -144,7 +198,7 @@ io.on('connection', (socket) => {
 
     const existing = stateCache.players.find(p => p.id === id);
     if (existing) {
-      return socket.emit('state_update', stateCache);
+      return socket.emit('state_update', socket.isAdmin ? stateCache : getSanitizedState(socket.playerId));
     }
 
     const newPlayer = {
@@ -240,10 +294,6 @@ const formRound1GroupsAndRoles = (players) => {
   return updates;
 };
 
-// ==========================================
-// ADMIN SECURITY AUTHENTICATION (PASSCODE: 777@)
-// ==========================================
-const ADMIN_PIN = process.env.ADMIN_PIN || '777@';
 
 app.post('/api/verify-admin-pin', (req, res) => {
   const { pin } = req.body;
