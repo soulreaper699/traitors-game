@@ -240,6 +240,28 @@ const formRound1GroupsAndRoles = (players) => {
   return updates;
 };
 
+// ==========================================
+// ADMIN SECURITY AUTHENTICATION (PIN: 7788)
+// ==========================================
+const ADMIN_PIN = process.env.ADMIN_PIN || '7788';
+
+app.post('/api/verify-admin-pin', (req, res) => {
+  const { pin } = req.body;
+  if (String(pin).trim() === ADMIN_PIN) {
+    return res.json({ success: true });
+  }
+  return res.status(401).json({ success: false, error: 'Incorrect PIN' });
+});
+
+// Block any unauthorized requests to admin endpoints
+app.use('/api/admin', (req, res, next) => {
+  const pin = req.headers['x-admin-pin'] || req.query.pin;
+  if (String(pin).trim() !== ADMIN_PIN) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid Admin PIN' });
+  }
+  next();
+});
+
 // Admin endpoint: Start The Relic Trial (forms groups of 10 & assigns roles in system secretly)
 app.post('/api/admin/start-trial', async (req, res) => {
   let players = await getAllPlayers();

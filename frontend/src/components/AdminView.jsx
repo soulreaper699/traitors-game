@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Skull, ShieldAlert, CheckCircle, RefreshCw, Crown, Lock, LogOut } from 'lucide-react';
 
 // Use relative path for production deployment where frontend is served by backend
 const API_URL = import.meta.env.PROD ? '' : `http://${window.location.hostname}:3001`;
@@ -7,17 +7,72 @@ const API_URL = import.meta.env.PROD ? '' : `http://${window.location.hostname}:
 export default function AdminView({ gameState }) {
   const { players = [], currentRound = '0' } = gameState;
   const [loading, setLoading] = useState(false);
+  const [savedPin, setSavedPin] = useState(() => sessionStorage.getItem('traitors_admin_pin') || '');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(sessionStorage.getItem('traitors_admin_pin')));
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   const alivePlayers = players.filter(p => p.status === 'Alive');
   const eliminatedPlayers = players.filter(p => p.status === 'Eliminated');
   const aliveTraitors = alivePlayers.filter(p => p.role === 'Traitor');
   const aliveInnocents = alivePlayers.filter(p => p.role === 'Innocent');
 
+  // Verify PIN with server
+  const handleUnlock = async (e) => {
+    if (e) e.preventDefault();
+    if (!enteredPin.trim()) return;
+    setVerifying(true);
+    setPinError('');
+    try {
+      const res = await fetch(`${API_URL}/api/verify-admin-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: enteredPin.trim() })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('traitors_admin_pin', enteredPin.trim());
+        setSavedPin(enteredPin.trim());
+        setIsAuthenticated(true);
+      } else {
+        setPinError('Incorrect Passcode. Access Denied.');
+      }
+    } catch (err) {
+      setPinError('Connection error: ' + err.message);
+    }
+    setVerifying(false);
+  };
+
+  const handleLock = () => {
+    sessionStorage.removeItem('traitors_admin_pin');
+    setSavedPin('');
+    setIsAuthenticated(false);
+    setEnteredPin('');
+  };
+
+  // Helper for authenticated admin requests
+  const adminFetch = async (endpoint, options = {}) => {
+    const currentPin = sessionStorage.getItem('traitors_admin_pin') || savedPin;
+    const res = await fetch(`${API_URL}/api/admin/${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-pin': currentPin,
+        ...(options.headers || {})
+      }
+    });
+    if (res.status === 401) {
+      handleLock();
+      throw new Error('Session expired or invalid PIN. Please unlock again.');
+    }
+    return res;
+  };
+
   const handleAction = async (endpoint) => {
     if (!window.confirm(`Are you sure you want to execute ${endpoint}?`)) return;
     setLoading(true);
     try {
-      await fetch(`${API_URL}/api/admin/${endpoint}`, { method: 'POST' });
+      await adminFetch(endpoint, { method: 'POST' });
     } catch (err) {
       alert('Action failed: ' + err.message);
     }
@@ -27,9 +82,8 @@ export default function AdminView({ gameState }) {
   const handleEliminate = async (id) => {
     if (!window.confirm('Eliminate this player?')) return;
     try {
-      await fetch(`${API_URL}/api/admin/eliminate`, {
+      await adminFetch('eliminate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
     } catch (err) {
@@ -40,9 +94,8 @@ export default function AdminView({ gameState }) {
   const handleDeclareWinner = async (id) => {
     if (!window.confirm('Declare this player as the WINNER? This ends the game.')) return;
     try {
-      await fetch(`${API_URL}/api/admin/set-winner`, {
+      await adminFetch('set-winner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
     } catch (err) {
@@ -54,9 +107,8 @@ export default function AdminView({ gameState }) {
     const newRole = currentRole === 'Traitor' ? 'Innocent' : 'Traitor';
     if (!window.confirm(`Change this player's role to ${newRole.toUpperCase()}?`)) return;
     try {
-      await fetch(`${API_URL}/api/admin/set-role`, {
+      await adminFetch('set-role', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, role: newRole })
       });
     } catch (err) {
@@ -73,9 +125,8 @@ export default function AdminView({ gameState }) {
       if (isNaN(group) || group <= 0) return alert('Invalid group number');
     }
     try {
-      await fetch(`${API_URL}/api/admin/set-player-group`, {
+      await adminFetch('set-player-group', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, group: group === '' ? null : group })
       });
     } catch (err) {
@@ -85,9 +136,8 @@ export default function AdminView({ gameState }) {
 
   const handleAutoAssignUnassigned = async () => {
     try {
-      await fetch(`${API_URL}/api/admin/randomize-groups`, {
+      await adminFetch('randomize-groups', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ onlyUnassigned: true })
       });
     } catch (err) {
@@ -104,9 +154,8 @@ export default function AdminView({ gameState }) {
 
   const handleSaveClue = async (group, text) => {
     try {
-      await fetch(`${API_URL}/api/admin/set-clue`, {
+      await adminFetch('set-clue', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group, clue: text })
       });
     } catch (err) {
@@ -141,11 +190,67 @@ export default function AdminView({ gameState }) {
     return `Round ${rnd}`;
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="center-content">
+        <h1 className="title-glow" style={{ fontSize: '2.5rem' }}>RESTRICTED ACCESS</h1>
+        <p className="subtitle-flicker">Chamber of the Grand Master</p>
+        <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '380px', padding: '2.5rem 2rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              background: 'rgba(197, 160, 89, 0.1)',
+              border: '1px solid var(--accent-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem'
+            }}>
+              <Lock size={28} color="var(--accent-gold)" />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '0.35rem' }}>Master Security Passcode</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Enter the master PIN to unlock controls</p>
+          </div>
+
+          <form onSubmit={handleUnlock} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={8}
+              autoFocus
+              className="input-field"
+              placeholder="••••"
+              value={enteredPin}
+              onChange={(e) => {
+                setPinError('');
+                setEnteredPin(e.target.value);
+              }}
+              style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '8px' }}
+            />
+            {pinError && (
+              <div style={{ color: 'var(--accent-red)', fontSize: '0.85rem', textAlign: 'center' }}>
+                ⚠️ {pinError}
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" disabled={verifying}>
+              {verifying ? 'Verifying...' : 'Unlock Chamber'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 className="title-glow" style={{ fontSize: '2rem', marginBottom: 0 }}>Admin Dashboard</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn btn-outline" onClick={handleLock} style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)' }}>
+            <Lock size={16} style={{ marginRight: '8px' }} /> Lock
+          </button>
           <button className="btn btn-outline" onClick={() => handleAction('reset')}>
             <RefreshCw size={16} style={{ marginRight: '8px' }} /> Reset Game
           </button>

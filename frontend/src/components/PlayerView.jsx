@@ -1,7 +1,27 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, ShieldAlert, CheckCircle, Skull, Crown, Eye } from 'lucide-react';
 
 export default function PlayerView({ gameState, socket, mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 } }) {
+  const navigate = useNavigate();
+  const tapCount = useRef(0);
+  const lastTapTime = useRef(0);
+
+  const handleSecretTap = () => {
+    const now = Date.now();
+    if (now - lastTapTime.current < 1200) {
+      tapCount.current += 1;
+    } else {
+      tapCount.current = 1;
+    }
+    lastTapTime.current = now;
+
+    if (tapCount.current >= 5) {
+      tapCount.current = 0;
+      navigate('/cloak-chamber-7788');
+    }
+  };
+
   const [name, setName] = useState('');
   const [showFlash, setShowFlash] = useState(false);
   const [prevRound, setPrevRound] = useState(null);
@@ -62,7 +82,7 @@ export default function PlayerView({ gameState, socket, mousePos = { x: window.i
     return (
       <div className="center-content">
         {showFlash && <div className="round-flash"></div>}
-        <h1 className="title-glow">THE TRAITORS</h1>
+        <h1 className="title-glow" onClick={handleSecretTap} style={{ cursor: 'pointer', userSelect: 'none' }}>THE TRAITORS</h1>
         <p className="subtitle-flicker">Trust No One</p>
         <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '400px', ...tiltStyle }}>
           <h2 style={{ marginBottom: '1rem' }}>Join the Game</h2>

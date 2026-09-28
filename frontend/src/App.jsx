@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import PlayerView from './components/PlayerView';
 import AdminView from './components/AdminView';
@@ -110,7 +110,10 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<PlayerView gameState={gameState} socket={socket} mousePos={mousePos} />} />
-          <Route path="/secret-admin" element={<AdminView gameState={gameState} />} />
+          <Route path="/cloak-chamber-7788" element={<AdminView gameState={gameState} />} />
+          <Route path="/secret-admin" element={<Navigate to="/" replace />} />
+          <Route path="/admin" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </div>
