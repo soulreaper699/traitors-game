@@ -232,8 +232,8 @@ io.on('connection', (socket) => {
 // Helper to group and assign roles for Round 1 / The Relic Trial
 // Strict Logic: FIRST fill Group 1 up to 10 players, THEN move to Group 2, etc.
 const formRound1GroupsAndRoles = (players) => {
-  // Balanced for 64 players: exactly 8 groups of 8 players (or 10 for 100+ players)
-  const chunkSize = players.length <= 80 ? 8 : 10;
+  // Balanced for 70 players: exactly 7 groups of 10 players!
+  const chunkSize = 10;
   
   // Check if all players already have round1_group assigned
   const allAssigned = players.length > 0 && players.every(p => p.round1_group && p.round1_group > 0);
@@ -386,8 +386,8 @@ app.post('/api/admin/set-clue', async (req, res) => {
 app.post('/api/admin/start-round2', async (req, res) => {
   let players = await getAllPlayers();
   const alivePlayers = players.filter(p => p.status === 'Alive');
-  // For 64-player tournament (~32 survivors): 4 groups of 8 players!
-  const chunkSize = alivePlayers.length <= 48 ? 8 : 15;
+  // For 70-player tournament (~35 survivors): 5 groups of 7 players!
+  const chunkSize = alivePlayers.length <= 40 ? 7 : (alivePlayers.length <= 50 ? 8 : 15);
 
   const allAssigned = alivePlayers.length > 0 && alivePlayers.every(p => p.round2_group && p.round2_group > 0);
   let groupMap = {};
@@ -422,8 +422,8 @@ app.post('/api/admin/start-round2', async (req, res) => {
     const groupKeys = Object.keys(groupMap).map(Number).sort((a,b) => a - b);
     groupKeys.forEach(gNum => {
       const group = groupMap[gNum];
-      // Ratio: 2 Traitors per group of 8 (25%), or 30% for larger groups
-      let numTraitors = chunkSize === 8 ? 2 : Math.max(1, Math.round(group.length * 0.3));
+      // Ratio: 2 Traitors per group of 7 or 8, or 30% for larger groups
+      let numTraitors = chunkSize <= 8 ? 2 : Math.max(1, Math.round(group.length * 0.3));
       if (group.length < chunkSize) {
         numTraitors = Math.max(1, Math.round(group.length * 0.28));
       }
@@ -590,10 +590,10 @@ app.post('/api/admin/randomize-groups', async (req, res) => {
   let alivePlayers = stateCache.players.filter(p => p.status === 'Alive');
 
   let col = 'round1_group';
-  let designedSize = alivePlayers.length <= 80 ? 8 : 10;
+  let designedSize = 10;
   if (currentRound === '2') {
     col = 'round2_group';
-    designedSize = alivePlayers.length <= 48 ? 8 : 15;
+    designedSize = alivePlayers.length <= 40 ? 7 : (alivePlayers.length <= 50 ? 8 : 15);
   } else if (currentRound === '3') {
     col = 'round3_group';
     designedSize = 2;
