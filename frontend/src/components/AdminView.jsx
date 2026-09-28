@@ -372,13 +372,13 @@ export default function AdminView({ gameState, socket }) {
             👁 Start Round 1 (Reveal Roles to Players; Same Groups Continue)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round2')}>
-            Start Round 2 (5 Groups of 7)
+            Start Round 2 (5 Groups of 8)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round3')}>
-            Start Round 3 (Trust or Betray Pairs of 2)
+            Start Round 3 (Trust or Betray Pairs - 10 Pairs)
           </button>
           <button className="btn btn-primary" disabled={loading} onClick={() => handleAction('start-round4')}>
-            Start Round 4 (The Final Council / Showdown)
+            Start Round 4 (The Final Council / ~10 Finalists)
           </button>
         </div>
       </div>
